@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: energy-efficiency-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Energia@2026"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+
+  api:
+    build:
+      context: .
+      dockerfile: EnergyEfficiency.Api/Dockerfile
+    container_name: energy-efficiency-api
+    depends_on:
+      - sqlserver
+    environment:
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=EnergyEfficiencyDb;User Id=sa;Password=Energia@2026;TrustServerCertificate=True;MultipleActiveResultSets=true"
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_URLS: "http://+:8080"
+    ports:
+      - "8080:8080"
+
+volumes:
+  mssql-data:

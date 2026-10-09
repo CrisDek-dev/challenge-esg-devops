@@ -1,0 +1,195 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-06-18T20:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_energy",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "Energy Efficiency API",
+      "description": "Collection para a API .NET 8 do tema ESG Eficiencia Energetica.",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_energy",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:5000",
+        "token": ""
+      },
+      "dataPropertyOrder": {
+        "&": ["base_url", "token"]
+      },
+      "color": null,
+      "isPrivate": false,
+      "metaSortKey": 1
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_energy",
+      "name": "Auth",
+      "metaSortKey": -10
+    },
+    {
+      "_id": "req_login",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "POST Login",
+      "description": "Autentica e retorna o token JWT (use as credenciais do seed: admin@energia.com / admin@123).",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"admin@energia.com\",\n  \"senha\": \"admin@123\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -100
+    },
+    {
+      "_id": "fld_leituras",
+      "_type": "request_group",
+      "parentId": "wrk_energy",
+      "name": "Leituras",
+      "metaSortKey": -9
+    },
+    {
+      "_id": "req_leituras_listar",
+      "_type": "request",
+      "parentId": "fld_leituras",
+      "name": "GET Listar leituras (paginado)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/leituras",
+      "parameters": [
+        { "name": "page", "value": "1" },
+        { "name": "pageSize", "value": "20" },
+        { "name": "setorId", "value": "", "disabled": true },
+        { "name": "equipamentoId", "value": "", "disabled": true },
+        { "name": "dataInicio", "value": "", "disabled": true },
+        { "name": "dataFim", "value": "", "disabled": true }
+      ],
+      "metaSortKey": -100
+    },
+    {
+      "_id": "req_leituras_registrar",
+      "_type": "request",
+      "parentId": "fld_leituras",
+      "name": "POST Registrar leitura (auth)",
+      "description": "Endpoint protegido. Cole o token retornado pelo login no header Authorization.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/leituras",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"equipamentoId\": 1,\n  \"dataHora\": \"2026-06-18T10:30:00Z\",\n  \"consumoKwh\": 250.5\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "metaSortKey": -90
+    },
+    {
+      "_id": "fld_alertas",
+      "_type": "request_group",
+      "parentId": "wrk_energy",
+      "name": "Alertas",
+      "metaSortKey": -8
+    },
+    {
+      "_id": "req_alertas_listar",
+      "_type": "request",
+      "parentId": "fld_alertas",
+      "name": "GET Listar alertas (auth, paginado)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/alertas",
+      "parameters": [
+        { "name": "page", "value": "1" },
+        { "name": "pageSize", "value": "20" },
+        { "name": "setorId", "value": "", "disabled": true },
+        { "name": "resolvido", "value": "", "disabled": true }
+      ],
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "metaSortKey": -100
+    },
+    {
+      "_id": "req_alertas_resolver",
+      "_type": "request",
+      "parentId": "fld_alertas",
+      "name": "PATCH Resolver alerta (ADMIN)",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/alertas/1/resolver",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "metaSortKey": -90
+    },
+    {
+      "_id": "fld_equip",
+      "_type": "request_group",
+      "parentId": "wrk_energy",
+      "name": "Equipamentos",
+      "metaSortKey": -7
+    },
+    {
+      "_id": "req_equip_obter",
+      "_type": "request",
+      "parentId": "fld_equip",
+      "name": "GET Obter equipamento",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/equipamentos/1",
+      "metaSortKey": -100
+    },
+    {
+      "_id": "req_equip_desligar",
+      "_type": "request",
+      "parentId": "fld_equip",
+      "name": "POST Desligar equipamento (ADMIN)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/equipamentos/1/desligar",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "metaSortKey": -90
+    },
+    {
+      "_id": "req_equip_ligar",
+      "_type": "request",
+      "parentId": "fld_equip",
+      "name": "POST Ligar equipamento (ADMIN)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/equipamentos/1/ligar",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "metaSortKey": -80
+    },
+    {
+      "_id": "fld_dashboard",
+      "_type": "request_group",
+      "parentId": "wrk_energy",
+      "name": "Dashboard",
+      "metaSortKey": -6
+    },
+    {
+      "_id": "req_dash_consumo",
+      "_type": "request",
+      "parentId": "fld_dashboard",
+      "name": "GET Consumo por setor",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/dashboard/consumo-por-setor",
+      "parameters": [
+        { "name": "dataInicio", "value": "2026-05-19T00:00:00Z" },
+        { "name": "dataFim", "value": "2026-06-18T23:59:59Z" }
+      ],
+      "metaSortKey": -100
+    }
+  ]
+}
