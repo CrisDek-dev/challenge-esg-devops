@@ -1,164 +1,271 @@
-# Challenge ESG - API .NET 8
+# Projeto - Cidades ESG Inteligentes
 
-Atividade da disciplina de Advanced Business Development with .NET.
+**Energy Efficiency API** - monitoramento de consumo de energia (ESG - Eficiência Energética e Sustentabilidade).
 
-**Aluno:** Cristofer Ridek Ribeiro Yanachi
-**RM:** 561914
-**Turma:** 2TDSOB
+**Aluno:** Cristofer Ridek Ribeiro Yanachi - **RM:** 561914 - **Turma:** 2TDSOB
 
-Tema escolhido: Eficiencia Energetica e Sustentabilidade (tema 1 da lista).
+**Repositório:** https://github.com/CrisDek-dev/challenge-esg-devops
 
-## Sobre o projeto
+**Documentação técnica (PDF):** [docs/documentacao.pdf](docs/documentacao.pdf)
 
-API REST em ASP.NET Core 8 para monitoramento de consumo de energia em
-ambiente industrial. Cada setor da empresa (producao, escritorio, armazem)
-tem equipamentos com sensores IoT enviando leituras de consumo. A API
-processa essas leituras, gera alertas quando o setor passa do limite mensal
-de kWh, permite desligar/ligar equipamentos remotamente (acao restrita a
-administradores) e entrega um relatorio consolidado de consumo por setor.
+API REST em ASP.NET Core 8 que recebe leituras de consumo dos equipamentos de cada setor
+(produção, escritório, armazém), gera alertas quando o setor passa do limite mensal de kWh,
+permite ligar/desligar equipamentos (somente ADMIN) e entrega um relatório de consumo por setor.
 
-## Stack
+Nesta entrega o projeto do challenge .NET foi adaptado para um fluxo DevOps completo:
+pipeline de CI/CD no GitHub Actions, imagem Docker publicada no GitHub Container Registry
+e deploy automatizado em dois ambientes (staging e produção).
+
+---
+
+## Como executar localmente com Docker
+
+Pré-requisito: Docker Desktop (ou Docker Engine + Docker Compose v2).
+
+1. Clonar o repositório:
+   ```
+   git clone https://github.com/CrisDek-dev/challenge-esg-devops.git
+   cd challenge-esg-devops
+   ```
+2. Criar o arquivo `.env` a partir do exemplo (se quiser trocar as senhas, troque antes do primeiro `up`):
+   ```
+   copy .env.example .env      # Prompt de Comando (cmd) do Windows
+   cp .env.example .env        # PowerShell, Git Bash, Linux/Mac
+   ```
+3. Subir a aplicação + banco:
+   ```
+   docker compose up -d --build
+   ```
+4. Acessar o Swagger em http://localhost:8080 (health check em http://localhost:8080/health).
+
+Usuário criado automaticamente (seed): `admin@energia.com` / `admin@123`, com papel **ADMIN**.
+No Swagger, fazer login em `/api/auth/login`, copiar o token e colar em **Authorize**.
+
+Para derrubar tudo (incluindo o volume do banco):
+```
+docker compose down -v
+```
+
+Se trocar a `SA_PASSWORD` depois de já ter subido uma vez, rode `docker compose down -v` antes do
+próximo `up`, porque o banco guarda a senha antiga no volume. Se o `sqlserver` ficar *unhealthy*,
+veja o motivo com `docker compose logs sqlserver`.
+
+O `docker-compose.override.yml` é carregado automaticamente nesse modo local e expõe o banco na
+porta **14333** do host (no SSMS: `localhost,14333`). Não usei a 1433 para não conflitar com um
+SQL Server já instalado na máquina.
+
+**Rodar a mesma stack como staging (igual o pipeline faz):**
+```
+docker compose -p esg-staging -f docker-compose.yml --env-file .env --env-file env/staging.env up -d
+```
+A API de staging fica em http://localhost:8081. Para derrubar, use o mesmo comando trocando
+`up -d` por `down -v`. Para produção, troque `staging` por `production` (porta 8082).
+
+### Executar sem Docker (opcional)
+
+Precisa do .NET 8 SDK e de um SQL Server local (a connection string padrão do `appsettings.json`
+usa `localhost` com autenticação do Windows).
+
+- `executar-api.bat`: restaura, compila, sobe a API e abre o Swagger em http://localhost:5000
+- `executar-testes.bat`: roda os testes (o mesmo que `dotnet test` na raiz)
+
+A pasta `insomnia/` tem uma collection com todos os endpoints. Ela vem configurada para
+http://localhost:5000; ao usar Docker, troque a variável `base_url` para http://localhost:8080.
+
+### Endpoints
+
+| Método | Rota                                | Acesso  | Função |
+|--------|-------------------------------------|---------|--------|
+| GET    | /health                             | público | Health check |
+| POST   | /api/auth/login                     | público | Login, retorna o token JWT |
+| GET    | /api/leituras                       | público | Lista leituras (paginado, com filtros) |
+| POST   | /api/leituras                       | JWT     | Registra leitura e gera alerta se passar do limite |
+| GET    | /api/alertas                        | JWT     | Lista alertas (paginado) |
+| PATCH  | /api/alertas/{id}/resolver          | ADMIN   | Marca alerta como resolvido |
+| GET    | /api/dashboard/consumo-por-setor    | público | Relatório de consumo por setor |
+| GET    | /api/equipamentos/{id}              | público | Detalhes do equipamento |
+| POST   | /api/equipamentos/{id}/desligar     | ADMIN   | Desliga o equipamento (simula IoT) |
+| POST   | /api/equipamentos/{id}/ligar        | ADMIN   | Liga o equipamento |
+
+Teste rápido no Swagger, depois do login: `POST /api/leituras` com
+`{ "equipamentoId": 1, "dataHora": "2026-06-18T10:00:00Z", "consumoKwh": 60000 }`.
+O equipamento 1 é do setor Produção (limite 50000 kWh), então a resposta vem com
+`gerouAlerta: true` e o alerta aparece em `GET /api/alertas`.
+
+---
+
+## Pipeline CI/CD
+
+**Ferramenta:** GitHub Actions, arquivo `.github/workflows/ci-cd.yml`.
+
+O pipeline roda a cada `push` na branch `main` e também pode ser disparado manualmente
+(aba Actions > Run workflow). Em pull requests roda só a parte de build e testes.
+
+| # | Job | O que faz |
+|---|-----|-----------|
+| 1 | **Build e testes** | Restaura as dependências, compila em Release e roda os 6 testes xUnit. O resultado (.trx) fica salvo como artefato `test-results` da execução. |
+| 2 | **Imagem Docker** | Builda a imagem com o `Dockerfile` e publica no GitHub Container Registry com duas tags: `sha-<commit>` e `latest`. |
+| 3 | **Deploy - Staging** | Baixa a imagem, sobe API + SQL Server com `docker compose` usando `env/staging.env` (porta 8081) e roda o smoke test. |
+| 4 | **Deploy - Producao** | Só roda se staging passou. Mesma imagem, configuração de `env/production.env` (porta 8082) e smoke test de novo. |
+
+Fluxo:
+
+```
+push na main -> build + testes -> imagem Docker (GHCR) -> deploy staging + smoke test -> deploy produção + smoke test
+```
+
+Se qualquer etapa falhar, as seguintes não rodam. Assim nunca vai para produção uma versão
+que não compilou, não passou nos testes ou não funcionou em staging.
+
+**Smoke test** (`scripts/smoke-test.sh`), executado depois de cada deploy:
+1. espera o `/health` responder 200;
+2. faz login com o usuário seed e confere se veio um token JWT;
+3. chama `/api/dashboard/consumo-por-setor` e confere o status 200 (essa rota lê do banco,
+   então isso mostra que a API conectou no SQL Server e rodou as migrations e o seed);
+4. chama `/api/alertas` sem token (tem que dar 401) e com o token (tem que dar 200),
+   para conferir que a autenticação JWT está funcionando no ambiente.
+
+**Segredos:** a senha do SQL Server e a chave do JWT não ficam no repositório. No pipeline elas
+são geradas aleatoriamente a cada deploy (`openssl rand`) e mascaradas nos logs. Localmente elas
+vêm do `.env`, que está no `.gitignore` (no repositório fica só o `.env.example`).
+
+**Ambientes:** staging e production são registrados como *Environments* do GitHub, então cada
+deploy fica registrado no repositório. Como o projeto não usa nuvem paga, o deploy acontece no
+próprio runner do GitHub Actions: a stack sobe, o smoke test valida e no final o ambiente é
+derrubado. A imagem implantada nos dois ambientes é a mesma (mesma tag `sha-<commit>`), só muda
+a configuração.
+
+---
+
+## Containerização
+
+`Dockerfile` (na raiz do projeto):
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /source
+
+COPY ["src/EnergyEfficiency.Api/EnergyEfficiency.Api.csproj", "src/EnergyEfficiency.Api/"]
+RUN dotnet restore "src/EnergyEfficiency.Api/EnergyEfficiency.Api.csproj"
+
+COPY . .
+RUN dotnet publish "src/EnergyEfficiency.Api/EnergyEfficiency.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_HTTP_PORTS=8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+
+EXPOSE 8080
+
+# Executa a aplicacao sem privilegios de root
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "EnergyEfficiency.Api.dll"]
+```
+
+Estratégias adotadas:
+
+- **Multi-stage build:** o SDK (pesado) só é usado para compilar; a imagem final tem apenas o
+  runtime do ASP.NET e os arquivos publicados.
+- **Cache de camadas:** o `.csproj` é copiado e restaurado antes do resto do código, então o
+  `dotnet restore` só roda de novo quando as dependências mudam. No pipeline o cache do Buildx
+  fica salvo no próprio GitHub Actions (`cache-from` / `cache-to: type=gha`).
+- **Usuário sem root:** a aplicação roda com o usuário `app` que já vem na imagem oficial do .NET 8.
+- **`.dockerignore`:** tira `bin/`, `obj/`, `.git`, `docs/`, arquivos `.md` e o `.env` do contexto de build.
+
+Orquestração (`docker-compose.yml`):
+
+- **Serviços:** `api` (imagem da aplicação) e `sqlserver` (SQL Server 2022).
+- **Rede:** `backend` (bridge). A API acessa o banco pelo nome `sqlserver`; em staging/produção o
+  banco não tem porta exposta para fora.
+- **Volume:** `mssql-data`, para os dados do banco continuarem existindo se o container for recriado.
+- **Variáveis de ambiente:** localmente tudo vem do `.env`. Em staging/produção a porta e o nome do
+  ambiente vêm de `env/staging.env` / `env/production.env`, e a senha do banco e a chave JWT são
+  geradas pelo pipeline. O mesmo `docker-compose.yml` serve para os três casos.
+- **Healthcheck:** o banco só é considerado pronto quando responde a um `SELECT 1`; a API só sobe
+  depois disso (`depends_on: condition: service_healthy`).
+
+---
+
+## Prints do funcionamento
+
+Execuções do pipeline: https://github.com/CrisDek-dev/challenge-esg-devops/actions
+
+**Pipeline completo (4 jobs com sucesso)**
+
+![Pipeline](docs/prints/01-pipeline-geral.png)
+
+**Build e testes automatizados**
+
+![Testes](docs/prints/02-build-testes.png)
+
+**Imagem publicada no GitHub Container Registry**
+
+![Imagem](docs/prints/03-imagem-docker.png)
+
+**Deploy em staging + smoke test**
+
+![Staging](docs/prints/04-staging.png)
+
+**Deploy em produção + smoke test**
+
+![Producao](docs/prints/05-producao.png)
+
+**Ambientes staging e production no GitHub**
+
+![Ambientes](docs/prints/06-ambientes.png)
+
+---
+
+## Tecnologias utilizadas
 
 - .NET 8 / ASP.NET Core Web API
-- Entity Framework Core 8 + SQL Server
-- JWT Bearer + roles
-- xUnit + Microsoft.AspNetCore.Mvc.Testing
-- Swagger / Swashbuckle
-- Docker
+- Entity Framework Core 8 + SQL Server 2022
+- JWT Bearer (com perfil ADMIN para as ações restritas) + BCrypt
+- xUnit + Microsoft.AspNetCore.Mvc.Testing (testes de integração com banco InMemory)
+- Swagger (Swashbuckle)
+- Docker (multi-stage) + Docker Compose
+- GitHub Actions (CI/CD) + GitHub Environments
+- GitHub Container Registry (ghcr.io)
+- Bash + curl + jq (scripts de deploy e smoke test)
 
-## Como rodar
-
-Pre-requisito: .NET 8 SDK. SQL Server local ou via Docker.
-
-### 1) Duplo clique nos .bat (Windows)
-
-- `executar-api.bat` - restaura, compila, sobe a API e abre o Swagger no navegador.
-- `executar-testes.bat` - roda os testes xUnit.
-
-### 2) Visual Studio
-
-Abrir `EnergyEfficiency.sln` e apertar F5.
-
-### 3) Linha de comando
-
-```
-cd EnergyEfficiency.Api
-dotnet run
-```
-
-API em http://localhost:5000.
-
-### 4) Docker Compose
-
-```
-docker compose up --build
-```
-
-Sobe API e container do SQL Server. API em http://localhost:8080.
-
-## Login
-
-Usuario admin criado automaticamente no primeiro startup (seed):
-
-```
-Email: admin@energia.com
-Senha: admin@123
-Papel: ADMIN
-```
-
-No Swagger, fazer login em `/api/auth/login`, copiar o token e colar no
-botao `Authorize`.
-
-## Endpoints
-
-| Metodo | Rota                                | Auth       | Funcao |
-|--------|-------------------------------------|------------|--------|
-| POST   | /api/auth/login                     | publico    | Login, retorna JWT |
-| GET    | /api/leituras                       | publico    | Lista leituras (paginado, com filtros) |
-| POST   | /api/leituras                       | JWT        | Registra leitura e dispara alerta se passar do limite |
-| GET    | /api/alertas                        | JWT        | Lista alertas (paginado) |
-| PATCH  | /api/alertas/{id}/resolver          | ADMIN      | Marca alerta como resolvido |
-| GET    | /api/dashboard/consumo-por-setor    | publico    | Relatorio agregado por setor |
-| GET    | /api/equipamentos/{id}              | publico    | Detalhes do equipamento |
-| POST   | /api/equipamentos/{id}/desligar     | ADMIN      | Desliga equipamento (simula IoT) |
-| POST   | /api/equipamentos/{id}/ligar        | ADMIN      | Liga equipamento |
-
-## Fluxo de teste
-
-Depois de logar no Swagger:
-
-1. POST `/api/leituras` com:
-   ```json
-   { "equipamentoId": 1, "dataHora": "2026-06-18T10:00:00Z", "consumoKwh": 60000 }
-   ```
-   Equipamento 1 e do setor Producao (limite 50000 kWh). Como passou, a
-   resposta vem com `gerouAlerta: true`.
-
-2. GET `/api/alertas` mostra o alerta criado.
-
-3. POST `/api/equipamentos/1/desligar`.
-
-4. Tentar registrar nova leitura nesse equipamento retorna 400.
-
-5. PATCH `/api/alertas/1/resolver`.
+---
 
 ## Estrutura do projeto
 
 ```
-EnergyEfficiency.Api/
-  Controllers/        - endpoints HTTP
-  Services/           - regras de negocio
-  Repositories/       - acesso a dados via EF Core
-  Models/             - entidades (Setor, Equipamento, LeituraConsumo, AlertaConsumo, Usuario)
-  ViewModels/         - DTOs de entrada e saida
-  Data/               - DbContext e Seeder
-  Migrations/         - migrations EF Core
-  Security/           - geracao do JWT
-  Middleware/         - tratamento global de excecoes
-  Helpers/            - paginacao
-  Exceptions/         - excecoes de dominio
-  Program.cs
-  Dockerfile
-
-EnergyEfficiency.Tests/
-  Controllers/        - 1 teste de integracao por controller
-  Infrastructure/     - WebApplicationFactory com banco InMemory
-
-docker-compose.yml
-insomnia/             - collection com todos os endpoints
+challenge-esg-devops/
+├── .github/workflows/ci-cd.yml   - pipeline CI/CD (GitHub Actions)
+├── src/
+│   ├── EnergyEfficiency.Api/     - código da API
+│   └── EnergyEfficiency.Tests/   - testes xUnit
+├── docs/                         - documentação em PDF e prints
+├── env/                          - configuração não secreta de staging e produção
+├── scripts/                      - deploy.sh e smoke-test.sh
+├── insomnia/                     - collection com os endpoints
+├── Dockerfile
+├── docker-compose.yml
+├── docker-compose.override.yml
+├── .env.example
+├── EnergyEfficiency.sln
+├── executar-api.bat
+├── executar-testes.bat
+└── README.md
 ```
 
-Camadas Controllers/Services/Repositories + ViewModels como aproximacao do MVVM pedido no enunciado.
+---
 
-## Testes
+## Checklist de entrega
 
-Cada controller tem um teste xUnit validando status 200, no formato do
-exemplo do enunciado. Os testes usam `WebApplicationFactory` com banco
-InMemory.
-
-```
-dotnet test
-```
-
-Os 5 testes passam.
-
-## Migrations
-
-A migration inicial fica em `EnergyEfficiency.Api/Migrations/`. A aplicacao
-roda `Database.MigrateAsync()` no startup, entao o banco e criado na
-primeira execucao.
-
-Para criar nova migration:
-
-```
-cd EnergyEfficiency.Api
-dotnet ef migrations add NomeDaMigration
-dotnet ef database update
-```
-
-## Performance
-
-Listagens usam `AsNoTracking()` e paginacao server-side (`Skip`/`Take` direto
-no banco). Foram criados indices compostos em `LeituraConsumo (EquipamentoId, DataHora)`
-e `AlertaConsumo (SetorId, Resolvido)` pra acelerar as queries mais comuns,
-mais chaves unicas em Email, Nome do setor e NumeroSerie do equipamento.
+| Item | OK |
+|------|----|
+| Projeto compactado em .ZIP com estrutura organizada | ☑ |
+| Dockerfile funcional | ☑ |
+| docker-compose.yml ou arquivos Kubernetes | ☑ |
+| Pipeline com etapas de build, teste e deploy | ☑ |
+| README.md com instruções e prints | ☑ |
+| Documentação técnica com evidências (PDF ou PPT) | ☑ |
+| Deploy realizado nos ambientes staging e produção | ☑ |

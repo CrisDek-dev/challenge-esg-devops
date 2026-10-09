@@ -5,6 +5,7 @@
 .github/
 .idea/
 .vscode/
+docs/
 insomnia/
 TestResults/
 *.md

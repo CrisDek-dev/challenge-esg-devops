@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Documentação DevOps - Cidades ESG Inteligentes</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #1a1a1a; margin: 0; }
+  h1 { font-size: 20pt; margin: 0 0 4pt 0; color: #1F3864; }
+  h2 { font-size: 13.5pt; color: #1F3864; margin: 18pt 0 6pt 0; border-bottom: 1px solid #c9d3e6; padding-bottom: 3pt; }
+  h3 { font-size: 11pt; margin: 12pt 0 4pt 0; }
+  p { margin: 0 0 7pt 0; text-align: justify; }
+  ul, ol { margin: 0 0 8pt 0; padding-left: 18pt; }
+  li { margin-bottom: 3pt; }
+  .capa { text-align: center; padding-top: 70mm; page-break-after: always; }
+  .capa .sub { font-size: 13pt; color: #444; margin-top: 6pt; }
+  .capa .info { margin-top: 40mm; font-size: 11pt; line-height: 1.8; }
+  table { border-collapse: collapse; width: 100%; margin: 4pt 0 10pt 0; font-size: 9.5pt; }
+  th, td { border: 1px solid #b7c2d6; padding: 4pt 6pt; text-align: left; vertical-align: top; }
+  th { background: #e8eef7; }
+  pre { background: #f4f6fa; border: 1px solid #d5dbe6; padding: 6pt 8pt; font-size: 8.5pt; white-space: pre-wrap; margin: 4pt 0 10pt 0; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9pt; }
+  figure { margin: 6pt 0 14pt 0; page-break-inside: avoid; }
+  figure img { width: 100%; border: 1px solid #c9d3e6; }
+  figcaption { font-size: 9pt; color: #555; margin-top: 3pt; }
+  .quebra { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<div class="capa">
+  <h1>Projeto - Cidades ESG Inteligentes</h1>
+  <div class="sub">Energy Efficiency API - CI/CD, Containerização e Orquestração</div>
+  <div class="info">
+    <b>Integrante:</b> Cristofer Ridek Ribeiro Yanachi - RM 561914<br>
+    <b>Turma:</b> 2TDSOB<br>
+    <b>Repositório:</b> github.com/CrisDek-dev/challenge-esg-devops<br>
+    FIAP - Navegando pelo mundo DevOps
+  </div>
+</div>
+
+<h2>1. Sobre o projeto</h2>
+<p>A aplicação escolhida foi a API do challenge em C# (.NET 8) com o tema ESG de eficiência energética. Ela recebe leituras de consumo dos equipamentos de cada setor de uma empresa, gera alertas quando um setor passa do limite mensal de kWh, permite ligar e desligar equipamentos (só para ADMIN) e mostra um relatório de consumo por setor. O banco é SQL Server e a autenticação é feita com JWT.</p>
+<p>Para esta atividade o projeto foi adaptado para simular um ambiente de produção: foi criado um pipeline de CI/CD no GitHub Actions, a imagem Docker passou a ser publicada em um registry e o deploy acontece de forma automática em dois ambientes, staging e produção.</p>
+
+<h2>2. Descrição do pipeline</h2>
+<p><b>Ferramenta:</b> GitHub Actions (arquivo <code>.github/workflows/ci-cd.yml</code>). O pipeline roda a cada push na branch <code>main</code> e também pode ser disparado manualmente. Em pull requests só a parte de build e testes é executada.</p>
+<table>
+  <tr><th>Etapa</th><th>O que faz</th></tr>
+  <tr><td>1. Build e testes</td><td>Instala o .NET 8, restaura as dependências, compila em Release e roda os 6 testes automatizados (xUnit). O resultado dos testes fica salvo como artefato <code>test-results</code> da execução.</td></tr>
+  <tr><td>2. Imagem Docker</td><td>Builda a imagem a partir do Dockerfile e publica no GitHub Container Registry (ghcr.io) com a tag do commit (<code>sha-xxxxxxx</code>) e a tag <code>latest</code>.</td></tr>
+  <tr><td>3. Deploy - Staging</td><td>Baixa a imagem publicada, sobe a API e o SQL Server com docker compose usando a configuração de <code>env/staging.env</code> (porta 8081) e executa o smoke test.</td></tr>
+  <tr><td>4. Deploy - Produção</td><td>Só executa se staging passou. Usa a mesma imagem, com a configuração de <code>env/production.env</code> (porta 8082), e executa o smoke test de novo.</td></tr>
+</table>
+<p><b>Lógica:</b> cada etapa depende da anterior (<code>needs</code>). Se o build ou algum teste falhar, a imagem não é gerada; se staging falhar, nada vai para produção. Assim só chega em produção uma versão que compilou, passou nos testes e funcionou em staging. A mesma imagem (mesma tag) é usada nos dois ambientes, só a configuração muda.</p>
+<p><b>Smoke test</b> (<code>scripts/smoke-test.sh</code>): depois de cada deploy o script (1) espera o endpoint <code>/health</code> responder 200; (2) faz login com o usuário de seed e confere se veio um token JWT; (3) chama <code>/api/dashboard/consumo-por-setor</code>, que lê do banco, então o status 200 mostra que a API conectou no SQL Server e rodou as migrations e o seed; (4) chama <code>/api/alertas</code> sem token (precisa dar 401) e com o token (precisa dar 200), para conferir que a autenticação está funcionando no ambiente.</p>
+<p><b>Segredos:</b> a senha do SQL Server e a chave do JWT não ficam no repositório. No pipeline elas são geradas aleatoriamente a cada deploy com <code>openssl rand</code> e mascaradas nos logs. Localmente elas ficam no arquivo <code>.env</code>, que está no <code>.gitignore</code> (o repositório tem só o <code>.env.example</code>).</p>
+<p><b>Ambientes:</b> staging e production estão cadastrados como Environments do GitHub, então cada deploy fica registrado no repositório. Como não foi usada nuvem paga, o deploy acontece no próprio runner do GitHub Actions: a stack sobe, o smoke test valida o ambiente e no final ele é derrubado.</p>
+
+<h2>3. Docker</h2>
+<h3>Arquitetura</h3>
+<pre>
+                 rede "backend" (bridge)
+  +-------------------------+        +---------------------------+
+  |  api                    |        |  sqlserver                |
+  |  imagem: ghcr.io/...    | -----> |  mssql/server:2022-latest |
+  |  porta 8080 (container) |  1433  |  volume: mssql-data       |
+  +-------------------------+        +---------------------------+
+       |
+  porta publicada: 8080 (local) / 8081 (staging) / 8082 (produção)
+</pre>
+<ul>
+  <li><b>api</b>: aplicação .NET 8. Só sobe depois que o banco está saudável (<code>depends_on: condition: service_healthy</code>).</li>
+  <li><b>sqlserver</b>: SQL Server 2022, com healthcheck que executa um <code>SELECT 1</code> pelo sqlcmd.</li>
+  <li><b>Volume</b> <code>mssql-data</code>: mantém os dados do banco mesmo se o container for recriado.</li>
+  <li><b>Rede</b> <code>backend</code>: a API acessa o banco pelo nome do serviço. Em staging e produção a porta do banco não é exposta para fora. Só no modo local o <code>docker-compose.override.yml</code> expõe o banco na porta 14333 do host.</li>
+  <li><b>Variáveis de ambiente</b>: senha do banco, chave JWT, porta e nome do ambiente. O mesmo <code>docker-compose.yml</code> serve para local, staging e produção.</li>
+</ul>
+<p>Estrutura do projeto: o <code>Dockerfile</code>, o <code>docker-compose.yml</code>, o <code>README.md</code> e a pasta <code>.github/workflows/</code> ficam na raiz, e o código fica em <code>src/</code> (<code>src/EnergyEfficiency.Api</code> com a API e <code>src/EnergyEfficiency.Tests</code> com os testes).</p>
+
+<h3>Dockerfile e imagem criada</h3>
+<p>O Dockerfile usa <b>multi-stage build</b>: o primeiro estágio usa a imagem do SDK para restaurar e publicar o projeto, e o estágio final usa só o runtime do ASP.NET com os arquivos publicados, o que deixa a imagem bem menor. O <code>.csproj</code> é copiado antes do resto do código para aproveitar o cache do <code>dotnet restore</code>, e a aplicação roda com o usuário <code>app</code> (sem root).</p>
+<p>Imagem gerada: <code>ghcr.io/crisdek-dev/challenge-esg-devops</code> (tags <code>sha-&lt;commit&gt;</code> e <code>latest</code>).</p>
+
+<h3>Comandos para executar (local e no pipeline)</h3>
+<table>
+  <tr><th>Comando</th><th>Para quê</th></tr>
+  <tr><td><code>copy .env.example .env</code> (no PowerShell/Linux: <code>cp</code>)</td><td>Criar o arquivo de variáveis local</td></tr>
+  <tr><td><code>docker compose up -d --build</code></td><td>Buildar a imagem e subir API + banco localmente (Swagger em http://localhost:8080)</td></tr>
+  <tr><td><code>docker compose ps</code> / <code>docker compose logs api</code></td><td>Ver os containers e os logs da API</td></tr>
+  <tr><td><code>docker compose down -v</code></td><td>Derrubar a stack e apagar o volume</td></tr>
+  <tr><td><code>bash scripts/deploy.sh staging</code></td><td>Deploy de um ambiente (usado pelo pipeline, que define as variáveis da imagem e dos segredos)</td></tr>
+  <tr><td><code>bash scripts/smoke-test.sh http://localhost:8081</code></td><td>Validar o ambiente depois do deploy (usado pelo pipeline; precisa de curl e jq)</td></tr>
+</table>
+
+<h2 class="quebra">4. Prints do pipeline rodando</h2>
+<figure><img src="prints/01-pipeline-geral.png"><figcaption>Figura 1 - Execução completa do pipeline: build e testes, imagem Docker, deploy em staging e deploy em produção.</figcaption></figure>
+<figure><img src="prints/02-build-testes.png"><figcaption>Figura 2 - Etapa de build e testes automatizados (6 testes aprovados).</figcaption></figure>
+<figure><img src="prints/03-imagem-docker.png"><figcaption>Figura 3 - Imagem Docker publicada no GitHub Container Registry.</figcaption></figure>
+
+<h2 class="quebra">5. Ambientes staging e produção funcionando</h2>
+<figure><img src="prints/04-staging.png"><figcaption>Figura 4 - Deploy em staging (porta 8081) com o smoke test aprovado.</figcaption></figure>
+<figure><img src="prints/05-producao.png"><figcaption>Figura 5 - Deploy em produção (porta 8082) com o smoke test aprovado.</figcaption></figure>
+<figure><img src="prints/06-ambientes.png"><figcaption>Figura 6 - Ambientes staging e production registrados no GitHub.</figcaption></figure>
+
+<h2 class="quebra">6. Desafios encontrados e como foram resolvidos</h2>
+<ol>
+  <li><b>Não ter nuvem paga nem Docker na máquina local.</b> Os deploys foram feitos no próprio runner do GitHub Actions, com os ambientes registrados como Environments do GitHub. Cada ambiente sobe, é validado pelo smoke test e é derrubado no fim.</li>
+  <li><b>Senha do banco escrita direto no docker-compose antigo.</b> As senhas viraram variáveis de ambiente, com um <code>.env.example</code> no repositório e o <code>.env</code> real no <code>.gitignore</code>. No pipeline os segredos são gerados a cada deploy e mascarados nos logs.</li>
+  <li><b>Saber se o deploy realmente funcionou.</b> Foi criado o endpoint <code>/health</code> (com teste automatizado) e o script de smoke test, que testa o login, uma rota que lê do banco e uma rota protegida (com e sem token).</li>
+  <li><b>O docker-compose antigo não esperava o SQL Server ficar pronto.</b> Com só <code>depends_on</code>, a API podia subir antes de o banco aceitar conexões. Para evitar isso, foi adicionado um healthcheck no banco e a API passou a esperar o banco ficar saudável.</li>
+  <li><b>Estrutura diferente da pedida no enunciado.</b> O projeto original tinha o Dockerfile dentro da pasta da API e nenhuma pasta <code>src/</code>. Os projetos foram movidos para <code>src/</code> e o Dockerfile para a raiz, ajustando a solution, o Dockerfile, o compose, o pipeline e o <code>executar-api.bat</code>. O <code>.dockerignore</code> que ficava dentro da pasta da API (e que o Docker nem lia, porque o contexto do build é a raiz) foi removido, ficando só o da raiz.</li>
+  <li><b>Avisos na primeira execução do pipeline.</b> A primeira execução passou, mas mostrou avisos de que as actions usadas rodavam em Node.js 20, que está sendo descontinuado, e de que o <code>ubuntu-latest</code> vai mudar de versão. As actions foram atualizadas para as versões que usam Node.js 24 e o runner foi fixado em <code>ubuntu-24.04</code>.</li>
+  <li><b>Porta 1433 em uso.</b> Na minha máquina já existe um SQL Server instalado usando a porta 1433, então expor o banco do container nessa porta daria conflito. No modo local o banco do container é exposto na porta 14333.</li>
+  <li><b>Projeto feito no Windows e pipeline rodando em Linux.</b> O GitHub Container Registry só aceita nome de imagem em minúsculas (o usuário é <code>CrisDek-dev</code>), então o pipeline converte o nome. E para os scripts <code>.sh</code> não quebrarem por causa do fim de linha do Windows (CRLF), foi criado um <code>.gitattributes</code> forçando LF.</li>
+</ol>
+
+<h2>7. Checklist de entrega</h2>
+<table>
+  <tr><th>Item</th><th style="width:50pt">OK</th></tr>
+  <tr><td>Projeto compactado em .ZIP com estrutura organizada</td><td>☑</td></tr>
+  <tr><td>Dockerfile funcional</td><td>☑</td></tr>
+  <tr><td>docker-compose.yml ou arquivos Kubernetes</td><td>☑</td></tr>
+  <tr><td>Pipeline com etapas de build, teste e deploy</td><td>☑</td></tr>
+  <tr><td>README.md com instruções e prints</td><td>☑</td></tr>
+  <tr><td>Documentação técnica com evidências (PDF ou PPT)</td><td>☑</td></tr>
+  <tr><td>Deploy realizado nos ambientes staging e produção</td><td>☑</td></tr>
+</table>
+
+</body>
+</html>

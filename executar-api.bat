@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 title Energy Efficiency API
-cd /d "%~dp0EnergyEfficiency.Api"
+cd /d "%~dp0src\EnergyEfficiency.Api"
 
 set "DOTNET_EXE=dotnet"
 where dotnet >nul 2>nul

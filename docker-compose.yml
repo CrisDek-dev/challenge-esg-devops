@@ -25,13 +25,12 @@ services:
     image: ${API_IMAGE:-energy-efficiency-api:local}
     build:
       context: .
-      dockerfile: EnergyEfficiency.Api/Dockerfile
+      dockerfile: Dockerfile
     depends_on:
       sqlserver:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      ASPNETCORE_URLS: "http://+:8080"
       ConnectionStrings__Default: "Server=sqlserver,1433;Database=EnergyEfficiencyDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true"
       Jwt__SecretKey: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY (copie .env.example para .env)}
     ports:
