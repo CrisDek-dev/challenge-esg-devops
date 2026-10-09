@@ -1,0 +1,7 @@
+# Carregado AUTOMATICAMENTE apenas em `docker compose up` local.
+# Expoe o SQL Server na porta 1433 para conexao por ferramentas (SSMS, Azure Data Studio).
+# O pipeline e os ambientes staging/producao usam `-f docker-compose.yml` e NAO carregam este arquivo.
+services:
+  sqlserver:
+    ports:
+      - "1433:1433"

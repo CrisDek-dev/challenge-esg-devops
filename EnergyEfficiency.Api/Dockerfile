@@ -16,4 +16,8 @@ ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 EXPOSE 8080
+
+# Executa a aplicacao sem privilegios de root
+USER $APP_UID
+
 ENTRYPOINT ["dotnet", "EnergyEfficiency.Api.dll"]

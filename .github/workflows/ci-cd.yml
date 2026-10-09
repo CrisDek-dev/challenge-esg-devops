@@ -1,0 +1,196 @@
+name: CI/CD - Energy Efficiency API
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
+jobs:
+  # ------------------------------------------------------------------
+  # 1) BUILD + TESTES AUTOMATIZADOS
+  # ------------------------------------------------------------------
+  build-test:
+    name: Build e testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restaurar dependencias
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --no-restore -c Release
+
+      - name: Testes automatizados
+        run: >
+          dotnet test --no-build -c Release
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory TestResults
+
+      - name: Publicar resultado dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/*.trx
+
+  # ------------------------------------------------------------------
+  # 2) BUILD DA IMAGEM DOCKER + PUBLICACAO NO GITHUB CONTAINER REGISTRY
+  # ------------------------------------------------------------------
+  docker-build:
+    name: Imagem Docker
+    needs: build-test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Definir nome da imagem
+        id: vars
+        run: |
+          REPO="${GITHUB_REPOSITORY,,}"
+          echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${REPO}:sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Configurar Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build e push da imagem
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: EnergyEfficiency.Api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.image }}
+            ghcr.io/${{ steps.vars.outputs.repo }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ------------------------------------------------------------------
+  # 3) DEPLOY EM STAGING
+  # ------------------------------------------------------------------
+  deploy-staging:
+    name: Deploy - Staging
+    needs: docker-build
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      packages: read
+    env:
+      API_IMAGE: ${{ needs.docker-build.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gerar segredos do ambiente
+        run: |
+          SA="Aa1$(openssl rand -hex 12)"
+          JWT="$(openssl rand -hex 32)"
+          echo "::add-mask::${SA}"
+          echo "::add-mask::${JWT}"
+          echo "SA_PASSWORD=${SA}" >> "$GITHUB_ENV"
+          echo "JWT_SECRET_KEY=${JWT}" >> "$GITHUB_ENV"
+
+      - name: Deploy
+        run: bash scripts/deploy.sh staging
+
+      - name: Smoke test
+        run: bash scripts/smoke-test.sh http://localhost:8081
+
+      - name: Logs dos containers
+        if: always()
+        run: docker compose -p esg-staging -f docker-compose.yml logs --tail=40 api || true
+
+      - name: Encerrar ambiente do runner
+        if: always()
+        run: docker compose -p esg-staging -f docker-compose.yml down -v || true
+
+  # ------------------------------------------------------------------
+  # 4) DEPLOY EM PRODUCAO (somente se staging passou)
+  # ------------------------------------------------------------------
+  deploy-production:
+    name: Deploy - Producao
+    needs: [docker-build, deploy-staging]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    env:
+      API_IMAGE: ${{ needs.docker-build.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gerar segredos do ambiente
+        run: |
+          SA="Aa1$(openssl rand -hex 12)"
+          JWT="$(openssl rand -hex 32)"
+          echo "::add-mask::${SA}"
+          echo "::add-mask::${JWT}"
+          echo "SA_PASSWORD=${SA}" >> "$GITHUB_ENV"
+          echo "JWT_SECRET_KEY=${JWT}" >> "$GITHUB_ENV"
+
+      - name: Deploy
+        run: bash scripts/deploy.sh production
+
+      - name: Smoke test
+        run: bash scripts/smoke-test.sh http://localhost:8082
+
+      - name: Logs dos containers
+        if: always()
+        run: docker compose -p esg-production -f docker-compose.yml logs --tail=40 api || true
+
+      - name: Encerrar ambiente do runner
+        if: always()
+        run: docker compose -p esg-production -f docker-compose.yml down -v || true

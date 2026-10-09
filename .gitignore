@@ -8,3 +8,6 @@ obj/
 *.cache
 out/
 publish/
+
+.env
+TestResults/
