@@ -5,6 +5,7 @@
 <title>Documentação DevOps - Cidades ESG Inteligentes</title>
 <style>
   @page { size: A4; margin: 20mm 18mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #1a1a1a; margin: 0; }
   h1 { font-size: 20pt; margin: 0 0 4pt 0; color: #1F3864; }
   h2 { font-size: 13.5pt; color: #1F3864; margin: 18pt 0 6pt 0; border-bottom: 1px solid #c9d3e6; padding-bottom: 3pt; }
@@ -21,6 +22,8 @@
   pre { background: #f4f6fa; border: 1px solid #d5dbe6; padding: 6pt 8pt; font-size: 8.5pt; white-space: pre-wrap; margin: 4pt 0 10pt 0; }
   code { font-family: Consolas, "Courier New", monospace; font-size: 9pt; }
   figure { margin: 6pt 0 14pt 0; page-break-inside: avoid; }
+  tr { page-break-inside: avoid; }
+  h2, h3 { page-break-after: avoid; }
   figure img { width: 100%; border: 1px solid #c9d3e6; }
   figcaption { font-size: 9pt; color: #555; margin-top: 3pt; }
   .quebra { page-break-before: always; }
@@ -93,12 +96,12 @@
   <tr><td><code>bash scripts/smoke-test.sh http://localhost:8081</code></td><td>Validar o ambiente depois do deploy (usado pelo pipeline; precisa de curl e jq)</td></tr>
 </table>
 
-<h2 class="quebra">4. Prints do pipeline rodando</h2>
+<h2>4. Prints do pipeline rodando</h2>
 <figure><img src="prints/01-pipeline-geral.png"><figcaption>Figura 1 - Execução completa do pipeline: build e testes, imagem Docker, deploy em staging e deploy em produção.</figcaption></figure>
 <figure><img src="prints/02-build-testes.png"><figcaption>Figura 2 - Etapa de build e testes automatizados (6 testes aprovados).</figcaption></figure>
 <figure><img src="prints/03-imagem-docker.png"><figcaption>Figura 3 - Imagem Docker publicada no GitHub Container Registry.</figcaption></figure>
 
-<h2 class="quebra">5. Ambientes staging e produção funcionando</h2>
+<h2>5. Ambientes staging e produção funcionando</h2>
 <figure><img src="prints/04-staging.png"><figcaption>Figura 4 - Deploy em staging (porta 8081) com o smoke test aprovado.</figcaption></figure>
 <figure><img src="prints/05-producao.png"><figcaption>Figura 5 - Deploy em produção (porta 8082) com o smoke test aprovado.</figcaption></figure>
 <figure><img src="prints/06-ambientes.png"><figcaption>Figura 6 - Ambientes staging e production registrados no GitHub.</figcaption></figure>
