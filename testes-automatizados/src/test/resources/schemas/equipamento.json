@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Equipamento",
+  "description": "Contrato da resposta 200 de GET /api/equipamentos/{id} e de POST /api/equipamentos/{id}/ligar e /desligar",
+  "type": "object",
+  "required": ["id", "nome", "numeroSerie", "setorId", "setorNome", "ativo", "potenciaNominalWatts"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "nome": { "type": "string", "minLength": 1 },
+    "numeroSerie": { "type": "string", "minLength": 1 },
+    "setorId": { "type": "integer", "minimum": 1 },
+    "setorNome": { "type": "string" },
+    "ativo": { "type": "boolean" },
+    "potenciaNominalWatts": { "type": "number", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

@@ -18,6 +18,29 @@ e deploy automatizado em dois ambientes (staging e produção).
 
 ---
 
+## Testes automatizados (BDD)
+
+Na atividade de **Testes Automatizados** o projeto ganhou a pasta
+[`testes-automatizados/`](testes-automatizados/README.md): testes BDD em **Gherkin (português)**
+com **Java + Cucumber + Rest Assured**, cobrindo **todos os endpoints** da API com validação de
+status code, do corpo JSON e de **contrato (JSON Schema)**.
+
+- 6 funcionalidades, 26 cenários (positivos e negativos), 9 contratos JSON Schema;
+- executam localmente (`executar-testes-bdd.bat` ou `mvnw clean test`), em Docker
+  (`docker-compose.testes.yml`) e no pipeline (job **Testes BDD (API)**, que bloqueia a imagem e
+  os deploys se algum cenário falhar);
+- documentação dos cenários e evidências: [docs/testes-automatizados.pdf](docs/testes-automatizados.pdf).
+
+Execução rápida, tudo em containers (na raiz, com o `.env` criado):
+
+```
+docker compose -f docker-compose.yml -f docker-compose.testes.yml up --build --exit-code-from testes
+```
+
+Instruções completas no [README dos testes](testes-automatizados/README.md).
+
+---
+
 ## Como executar localmente com Docker
 
 Pré-requisito: Docker Desktop (ou Docker Engine + Docker Compose v2).
@@ -104,14 +127,15 @@ O pipeline roda a cada `push` na branch `main` e também pode ser disparado manu
 | # | Job | O que faz |
 |---|-----|-----------|
 | 1 | **Build e testes** | Restaura as dependências, compila em Release e roda os 6 testes xUnit. O resultado (.trx) fica salvo como artefato `test-results` da execução. |
-| 2 | **Imagem Docker** | Builda a imagem com o `Dockerfile` e publica no GitHub Container Registry com duas tags: `sha-<commit>` e `latest`. |
-| 3 | **Deploy - Staging** | Baixa a imagem, sobe API + SQL Server com `docker compose` usando `env/staging.env` (porta 8081) e roda o smoke test. |
-| 4 | **Deploy - Producao** | Só roda se staging passou. Mesma imagem, configuração de `env/production.env` (porta 8082) e smoke test de novo. |
+| 2 | **Testes BDD (API)** | Sobe API + SQL Server com `docker compose`, executa os 26 cenários Cucumber (`./mvnw clean test`) e de novo pelo container de testes; publica o resumo e o relatório `relatorio-testes-bdd`. |
+| 3 | **Imagem Docker** | Só roda se os jobs 1 e 2 passaram. Builda a imagem com o `Dockerfile` e publica no GitHub Container Registry com duas tags: `sha-<commit>` e `latest`. |
+| 4 | **Deploy - Staging** | Baixa a imagem, sobe API + SQL Server com `docker compose` usando `env/staging.env` (porta 8081) e roda o smoke test. |
+| 5 | **Deploy - Producao** | Só roda se staging passou. Mesma imagem, configuração de `env/production.env` (porta 8082) e smoke test de novo. |
 
 Fluxo:
 
 ```
-push na main -> build + testes -> imagem Docker (GHCR) -> deploy staging + smoke test -> deploy produção + smoke test
+push na main -> build + testes xUnit -> testes BDD -> imagem Docker (GHCR) -> deploy staging + smoke test -> deploy produção + smoke test
 ```
 
 Se qualquer etapa falhar, as seguintes não rodam. Assim nunca vai para produção uma versão
@@ -226,6 +250,7 @@ Execuções do pipeline: https://github.com/CrisDek-dev/challenge-esg-devops/act
 - Entity Framework Core 8 + SQL Server 2022
 - JWT Bearer (com perfil ADMIN para as ações restritas) + BCrypt
 - xUnit + Microsoft.AspNetCore.Mvc.Testing (testes de integração com banco InMemory)
+- Java 21 + Cucumber (BDD/Gherkin) + Rest Assured + JSON Schema Validator (testes de API)
 - Swagger (Swashbuckle)
 - Docker (multi-stage) + Docker Compose
 - GitHub Actions (CI/CD) + GitHub Environments
@@ -242,17 +267,20 @@ challenge-esg-devops/
 ├── src/
 │   ├── EnergyEfficiency.Api/     - código da API
 │   └── EnergyEfficiency.Tests/   - testes xUnit
+├── testes-automatizados/         - testes BDD (Java + Cucumber + Rest Assured + JSON Schema)
 ├── docs/                         - documentação em PDF e prints
 ├── env/                          - configuração não secreta de staging e produção
-├── scripts/                      - deploy.sh e smoke-test.sh
+├── scripts/                      - deploy.sh, smoke-test.sh e resumo-testes-bdd.py
 ├── insomnia/                     - collection com os endpoints
 ├── Dockerfile
 ├── docker-compose.yml
 ├── docker-compose.override.yml
+├── docker-compose.testes.yml     - API + banco + container de testes BDD
 ├── .env.example
 ├── EnergyEfficiency.sln
 ├── executar-api.bat
 ├── executar-testes.bat
+├── executar-testes-bdd.bat
 └── README.md
 ```
 

@@ -11,3 +11,7 @@ publish/
 
 .env
 TestResults/
+
+# Testes automatizados (Java/Maven)
+target/
+*.iml

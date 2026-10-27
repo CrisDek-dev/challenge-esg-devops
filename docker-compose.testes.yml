@@ -1,0 +1,23 @@
+# Executa os testes automatizados (BDD - Cucumber + Rest Assured) contra a API, tudo em containers.
+# Usado JUNTO com o docker-compose.yml (que sobe a API e o SQL Server).
+#
+# Na raiz do projeto, com o arquivo .env criado (copie o .env.example):
+#   docker compose -f docker-compose.yml -f docker-compose.testes.yml up --build --exit-code-from testes
+#
+# Ao final o relatorio fica em testes-automatizados/target/cucumber-reports.html
+# Para derrubar tudo depois: docker compose -f docker-compose.yml -f docker-compose.testes.yml down -v
+
+services:
+  testes:
+    build:
+      context: ./testes-automatizados
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    environment:
+      # Dentro da rede do compose a API e acessada pelo nome do servico
+      API_BASE_URL: http://api:8080
+    volumes:
+      - ./testes-automatizados/target:/testes/target
+    networks:
+      - backend

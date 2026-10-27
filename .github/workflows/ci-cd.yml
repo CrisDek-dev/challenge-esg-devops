@@ -58,11 +58,76 @@ jobs:
           path: TestResults/*.trx
 
   # ------------------------------------------------------------------
-  # 2) BUILD DA IMAGEM DOCKER + PUBLICACAO NO GITHUB CONTAINER REGISTRY
+  # 2) TESTES AUTOMATIZADOS BDD (Cucumber + Rest Assured + JSON Schema)
+  #    Sobe a API real com SQL Server e executa todos os cenarios Gherkin.
+  # ------------------------------------------------------------------
+  testes-bdd:
+    name: Testes BDD (API)
+    needs: build-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Instalar Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Gerar segredos do ambiente de teste
+        run: |
+          SA="Aa1$(openssl rand -hex 12)"
+          JWT="$(openssl rand -hex 32)"
+          echo "::add-mask::${SA}"
+          echo "::add-mask::${JWT}"
+          echo "SA_PASSWORD=${SA}" >> "$GITHUB_ENV"
+          echo "JWT_SECRET_KEY=${JWT}" >> "$GITHUB_ENV"
+
+      - name: Subir API + SQL Server
+        run: docker compose -p esg-testes -f docker-compose.yml up -d --build
+
+      - name: Executar testes BDD (mvn clean test)
+        working-directory: testes-automatizados
+        run: ./mvnw -B clean test -Dapi.baseUrl=http://localhost:8080
+
+      - name: Executar testes BDD no container de testes (Dockerfile)
+        run: >
+          docker compose -p esg-testes -f docker-compose.yml -f docker-compose.testes.yml
+          run --rm --build testes
+
+      - name: Resumo dos testes
+        if: always()
+        run: python3 scripts/resumo-testes-bdd.py testes-automatizados/target/cucumber.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar relatorio dos testes BDD
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: relatorio-testes-bdd
+          path: |
+            testes-automatizados/target/cucumber-reports.html
+            testes-automatizados/target/cucumber.json
+            testes-automatizados/target/cucumber-junit.xml
+          if-no-files-found: warn
+
+      - name: Logs da API
+        if: failure()
+        run: docker compose -p esg-testes -f docker-compose.yml logs api | tail -n 100 || true
+
+      - name: Encerrar ambiente de teste
+        if: always()
+        run: docker compose -p esg-testes -f docker-compose.yml -f docker-compose.testes.yml down -v || true
+
+  # ------------------------------------------------------------------
+  # 3) BUILD DA IMAGEM DOCKER + PUBLICACAO NO GITHUB CONTAINER REGISTRY
+  #    So roda se os testes unitarios E os testes BDD passaram.
   # ------------------------------------------------------------------
   docker-build:
     name: Imagem Docker
-    needs: build-test
+    needs: [build-test, testes-bdd]
     # Imagem e deploy so a partir da main (push ou disparo manual). Em PR roda so build + testes.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -109,7 +174,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ------------------------------------------------------------------
-  # 3) DEPLOY EM STAGING
+  # 4) DEPLOY EM STAGING
   # ------------------------------------------------------------------
   deploy-staging:
     name: Deploy - Staging
@@ -159,7 +224,7 @@ jobs:
         run: docker compose -p esg-staging -f docker-compose.yml down -v || true
 
   # ------------------------------------------------------------------
-  # 4) DEPLOY EM PRODUCAO (somente se staging passou)
+  # 5) DEPLOY EM PRODUCAO (somente se staging passou)
   # ------------------------------------------------------------------
   deploy-production:
     name: Deploy - Producao

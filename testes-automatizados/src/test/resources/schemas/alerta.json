@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Alerta",
+  "description": "Contrato da resposta 200 de PATCH /api/alertas/{id}/resolver",
+  "type": "object",
+  "required": ["id", "setorId", "setorNome", "dataHora", "consumoAcumuladoKwh", "limiteKwh", "percentualAcimaLimite", "resolvido", "dataResolucao"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "setorId": { "type": "integer", "minimum": 1 },
+    "setorNome": { "type": "string" },
+    "dataHora": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+    },
+    "consumoAcumuladoKwh": { "type": "number", "minimum": 0 },
+    "limiteKwh": { "type": "number", "minimum": 0 },
+    "percentualAcimaLimite": { "type": "number" },
+    "resolvido": { "type": "boolean" },
+    "dataResolucao": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+    }
+  },
+  "additionalProperties": false
+}

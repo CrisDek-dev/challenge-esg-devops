@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Leitura registrada",
+  "description": "Contrato da resposta 201 de POST /api/leituras",
+  "type": "object",
+  "required": ["id", "equipamentoId", "equipamentoNome", "setorNome", "dataHora", "consumoKwh", "gerouAlerta"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "equipamentoId": { "type": "integer", "minimum": 1 },
+    "equipamentoNome": { "type": "string", "minLength": 1 },
+    "setorNome": { "type": "string", "minLength": 1 },
+    "dataHora": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+    },
+    "consumoKwh": { "type": "number", "minimum": 0 },
+    "gerouAlerta": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

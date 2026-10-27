@@ -11,3 +11,4 @@ TestResults/
 *.md
 *.bat
 .env
+testes-automatizados/

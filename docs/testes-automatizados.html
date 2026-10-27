@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Testes Automatizados (BDD) - Energy Efficiency API</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.45; color: #1a1a1a; margin: 0; }
+  h1 { font-size: 22pt; margin: 0 0 6pt 0; color: #1F3864; }
+  h2 { font-size: 13.5pt; color: #1F3864; margin: 18pt 0 6pt 0; border-bottom: 1px solid #c9d3e6; padding-bottom: 3pt; }
+  h3 { font-size: 11pt; margin: 12pt 0 4pt 0; }
+  p { margin: 0 0 7pt 0; text-align: justify; }
+  .capa { text-align: center; padding-top: 65mm; page-break-after: always; }
+  .capa .sub { font-size: 13pt; color: #444; margin-top: 6pt; }
+  .capa .sub2 { font-size: 11pt; color: #666; margin-top: 4pt; }
+  .capa .info { margin-top: 45mm; font-size: 11pt; line-height: 1.8; }
+  table { border-collapse: collapse; width: 100%; margin: 4pt 0 10pt 0; font-size: 9.5pt; }
+  table.pequena { font-size: 8.6pt; }
+  th, td { border: 1px solid #b7c2d6; padding: 4pt 6pt; text-align: left; vertical-align: top; }
+  th { background: #e8eef7; }
+  tr { page-break-inside: avoid; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9pt; }
+  pre { font-family: Consolas, "Courier New", monospace; }
+  pre.arvore { background: #f4f6fa; border: 1px solid #d5dbe6; padding: 6pt 8pt; font-size: 8.3pt; margin: 4pt 0 10pt 0; }
+  .codigo { margin: 4pt 0 10pt 0; }
+  .codigo pre { background: #f7f8fb; border: 1px solid #d5dbe6; border-left: 3px solid #1F3864; padding: 6pt 8pt;
+                font-size: 7.9pt; line-height: 1.38; white-space: pre-wrap; margin: 0; }
+  .codigo .legenda, figcaption { font-size: 8.8pt; color: #555; margin-top: 3pt; }
+  .g-kw { color: #0b3d91; font-weight: bold; }
+  .g-tag { color: #7a6a00; }
+  .g-str { color: #1a7f37; }
+  .g-par { color: #a0522d; }
+  .g-tab { color: #374151; }
+  .g-com { color: #888; }
+  figure { margin: 6pt 0 14pt 0; page-break-inside: avoid; }
+  figure img { width: 100%; border: 1px solid #c9d3e6; }
+  figure.cenario { text-align: center; }
+  figure.cenario img { width: 78%; }
+  figure.cenario figcaption { text-align: left; }
+  h2, h3 { page-break-after: avoid; }
+  .quebra { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<div class="capa">
+  <h1>Testes Automatizados com BDD</h1>
+  <div class="sub">Energy Efficiency API - Cidades ESG Inteligentes (Eficiência Energética)</div>
+  <div class="sub2">Gherkin + Cucumber + Rest Assured + JSON Schema</div>
+  <div class="info">
+    <b>Integrante:</b> Cristofer Ridek Ribeiro Yanachi - RM 561914<br>
+    <b>Turma:</b> 2TDSOB<br>
+    <b>Repositório:</b> github.com/CrisDek-dev/challenge-esg-devops (pasta <code>testes-automatizados</code>)<br>
+    FIAP - Testes Automatizados - outubro de 2026
+  </div>
+</div>
+
+<h2>1. Projeto testado</h2>
+<p>O projeto usado é a API do challenge ESG em C# (.NET 8), a mesma das atividades anteriores, com o tema
+<b>eficiência energética e sustentabilidade</b>. Ela recebe as leituras de consumo de energia dos equipamentos de
+cada setor de uma empresa, gera um alerta quando um setor passa do limite mensal de kWh, permite ligar e desligar
+equipamentos remotamente (só para ADMIN) e entrega um relatório de consumo por setor. O banco é SQL Server e a
+autenticação é feita com JWT.</p>
+<p>Como o enunciado permite, os testes foram escritos em <b>Java com Cucumber</b>, seguindo a mesma arquitetura
+vista em aula (pastas <code>features</code>, <code>steps</code>, <code>services</code>, <code>model</code>,
+<code>runner</code> e <code>hook</code>). O projeto de testes fica na pasta <code>testes-automatizados</code> e é
+separado da API: ele faz requisições HTTP para a API rodando de verdade (local, em Docker ou no pipeline), do mesmo
+jeito que um cliente faria.</p>
+<table>
+  <tr><th>Item</th><th>Resultado</th></tr>
+  <tr><td>Funcionalidades (.feature) em Gherkin</td><td>6</td></tr>
+  <tr><td>Cenários BDD executados</td><td>26 (12 positivos e 14 negativos)</td></tr>
+  <tr><td>Endpoints da API cobertos</td><td>10 de 10</td></tr>
+  <tr><td>Contratos JSON Schema</td><td>9</td></tr>
+  <tr><td>Resultado da execução</td><td>26 cenários e 150 steps aprovados</td></tr>
+</table>
+
+<h2>2. Relação dos testes com os pilares ESG</h2>
+<p>Cada funcionalidade recebeu uma tag com o pilar ESG que ela protege (<code>@ambiental</code> e
+<code>@governanca</code>). Assim os testes, além de garantir a qualidade técnica, verificam que a API continua
+cumprindo o seu papel dentro da proposta ESG.</p>
+<table>
+  <tr><th>Pilar</th><th>O que os testes garantem</th></tr>
+  <tr><td><b>Ambiental</b><br>(eficiência energética)</td><td>Leituras de consumo são registradas corretamente; o consumo acima do limite do setor gera alerta; o desligamento remoto funciona e equipamento desligado não registra consumo; o painel por setor mostra consumo e limites certos.</td></tr>
+  <tr><td><b>Governança</b><br>(integridade, rastreabilidade e compliance)</td><td>Ações críticas exigem autenticação (401 sem token); credenciais e dados inválidos são rejeitados; a resolução de um alerta registra a data (rastreabilidade) e não pode ser repetida; os contratos JSON Schema garantem que o formato das respostas não muda sem aviso para quem integra com a API.</td></tr>
+  <tr><td><b>Social</b><br>(usabilidade)</td><td>Os cenários negativos conferem que a API devolve mensagens de erro claras, que indicam ao usuário o que corrigir (ex.: "Email ou senha invalidos.", campo com erro de validação).</td></tr>
+</table>
+
+<h2>3. Ferramentas e arquitetura da automação</h2>
+<table>
+  <tr><th>Ferramenta</th><th>Uso no projeto</th></tr>
+  <tr><td>Java 21 + Maven (Maven Wrapper)</td><td>Linguagem e build. O <code>mvnw</code> baixa o Maven sozinho, então não precisa instalar.</td></tr>
+  <tr><td>Cucumber 7 (cucumber-java + cucumber-junit)</td><td>Executa os cenários escritos em Gherkin (<code># language: pt</code>).</td></tr>
+  <tr><td>Cucumber PicoContainer</td><td>Compartilha o estado do cenário (última resposta, token, IDs) entre as classes de steps.</td></tr>
+  <tr><td>Rest Assured</td><td>Faz as requisições HTTP e extrai as respostas.</td></tr>
+  <tr><td>Gson + Lombok</td><td>Modelos (DTOs) que viram o JSON das requisições.</td></tr>
+  <tr><td>json-schema-validator (networknt) + org.json</td><td>Testes de contrato com JSON Schema.</td></tr>
+  <tr><td>JUnit 4</td><td>Asserções e execução pela classe <code>TestRunner</code>.</td></tr>
+  <tr><td>Docker / GitHub Actions</td><td>Execução dos testes em container e no pipeline de CI/CD.</td></tr>
+</table>
+<pre class="arvore">testes-automatizados/
+├── pom.xml                         dependências + surefire executando o TestRunner
+├── mvnw / mvnw.cmd                 Maven Wrapper
+├── Dockerfile                      imagem que executa os testes
+└── src/test/
+    ├── java/
+    │   ├── runner/TestRunner.java  configuração do Cucumber (features, glue, tags, relatórios)
+    │   ├── hook/Hook.java          @BeforeAll espera a API; @After anexa evidências e religa equipamentos
+    │   ├── steps/                  ComumSteps, AutenticacaoSteps, LeiturasSteps, AlertasSteps, ...
+    │   ├── services/               chamadas Rest Assured (um service por recurso) + ContratoService
+    │   ├── model/                  LoginModel, LeituraModel, AlertaModel, ErroApiModel
+    │   └── support/                ConfiguracaoApi (URL da API) e ContextoTeste (estado do cenário)
+    └── resources/
+        ├── features/               6 arquivos .feature em português
+        └── schemas/                9 contratos JSON Schema</pre>
+<p><b>Fluxo de um passo:</b> o Cucumber lê a linha do <code>.feature</code> e chama o método da classe de
+<i>steps</i> com a mesma frase. O step chama um <i>service</i>, que monta a requisição com Rest Assured e guarda a
+resposta no <code>ContextoTeste</code>. Os passos de validação (<i>Então</i>) leem essa resposta e conferem o
+status code, os campos do JSON e o contrato. Os passos que se repetem em todas as funcionalidades (status code,
+corpo, mensagem de erro e contrato) ficam em <code>ComumSteps</code>, para não duplicar código.</p>
+<p><b>Testes independentes:</b> cada cenário faz o próprio login e prepara os dados de que precisa (por exemplo,
+<i>"que o equipamento 4 esteja ligado"</i> liga o equipamento se ele estiver desligado). Por isso a suíte pode ser
+executada várias vezes seguidas, em qualquer ordem e no mesmo banco. Isso foi conferido rodando a suíte completa
+mais de uma vez em sequência, sempre com 100% de aprovação.</p>
+
+<h2 class="quebra">4. Cenários de teste em Gherkin</h2>
+<p>Os cenários foram escritos em português, no formato <i>Dado - Quando - Então</i>, com tabelas de dados (<i>data tables</i>) para os campos das requisições. Cada cenário tem uma tag que indica se é caminho feliz (<code>@positivo</code>) ou falha (<code>@negativo</code>), e os que validam contrato têm a tag <code>@contrato</code>. A tag <code>@regressivo</code>, aplicada em todas as funcionalidades, é a usada pelo <code>TestRunner</code>.</p>
+<h3>4.1 Autenticação - <code>Autenticacao.feature</code> (4 cenários)</h3>
+<p>Garante que só usuários com credenciais válidas recebem o token JWT e que dados inválidos são barrados com mensagens claras. É a base da <b>governança</b>: as ações críticas da API (registrar leitura, resolver alerta, desligar equipamento) dependem desse controle de acesso. O último cenário é um <i>Esquema do Cenário</i> (Scenario Outline), que roda uma vez para cada linha de <i>Exemplos</i>.</p>
+<div class="codigo"><pre><span class="g-com"># language: pt</span>
+<span class="g-tag">@regressivo @governanca</span>
+<span class="g-kw">Funcionalidade:</span> Autenticação de usuários na API de eficiência energética
+  Como gestor de energia da empresa
+  Quero me autenticar na API
+  Para que somente pessoas autorizadas operem o monitoramento de consumo (governança e compliance)
+
+  <span class="g-tag">@smoke @positivo @contrato</span>
+  <span class="g-kw">Cenário:</span> Login bem-sucedido com credenciais válidas
+    <span class="g-kw">Dado </span>que eu tenha os seguintes dados de login:
+      <span class="g-tab">| campo | valor             |</span>
+      <span class="g-tab">| email | admin@energia.com |</span>
+      <span class="g-tab">| senha | admin@123         |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/auth/login"</span> de autenticação
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>o corpo da resposta deve conter os valores:
+      <span class="g-tab">| campo | valor         |</span>
+      <span class="g-tab">| nome  | Administrador |</span>
+      <span class="g-tab">| papel | ADMIN         |</span>
+    <span class="g-kw">E </span>a resposta deve conter um token JWT
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Login bem-sucedido"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@negativo @contrato</span>
+  <span class="g-kw">Cenário:</span> Login sem sucesso ao informar a senha incorreta
+    <span class="g-kw">Dado </span>que eu tenha os seguintes dados de login:
+      <span class="g-tab">| campo | valor             |</span>
+      <span class="g-tab">| email | admin@energia.com |</span>
+      <span class="g-tab">| senha | senhaErrada1      |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/auth/login"</span> de autenticação
+    <span class="g-kw">Então </span>o status code da resposta deve ser 400
+    <span class="g-kw">E </span>o corpo de resposta de erro da api deve retornar a mensagem <span class="g-str">"Email ou senha invalidos."</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Erro da API"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@negativo @contrato</span>
+  <span class="g-kw">Esquema do Cenário:</span> Login rejeitado por dados em formato inválido (<span class="g-par">&lt;situacao&gt;</span>)
+    <span class="g-kw">Dado </span>que eu tenha os seguintes dados de login:
+      <span class="g-tab">| campo | valor   |</span>
+      <span class="g-tab">| email | &lt;email&gt; |</span>
+      <span class="g-tab">| senha | &lt;senha&gt; |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/auth/login"</span> de autenticação
+    <span class="g-kw">Então </span>o status code da resposta deve ser 400
+    <span class="g-kw">E </span>a resposta deve apontar erro de validação no campo <span class="g-str">"<span class="g-par">&lt;campoComErro&gt;</span>"</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Erro de validação"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+    <span class="g-kw">Exemplos:</span>
+      <span class="g-tab">| situacao                      | email             | senha     | campoComErro |</span>
+      <span class="g-tab">| e-mail sem arroba             | admin-energia.com | admin@123 | Email        |</span>
+      <span class="g-tab">| senha com menos de 6 dígitos  | admin@energia.com | 123       | Senha        |</span></pre><div class="legenda">Código-fonte 1 - Autenticacao.feature - Linguagem: Gherkin</div></div>
+<h3>4.2 Leituras de consumo - <code>Leituras.feature</code> (6 cenários)</h3>
+<p>Cobre o registro das leituras enviadas pelos sensores IoT e a consulta paginada. Além do caminho feliz, testa a regra ambiental principal do sistema: uma leitura que faz o setor passar do limite mensal de kWh precisa gerar um alerta de consumo. Os cenários negativos garantem a integridade dos dados (consumo negativo, equipamento inexistente e acesso sem token).</p>
+<div class="codigo"><pre><span class="g-com"># language: pt</span>
+<span class="g-tag">@regressivo @ambiental</span>
+<span class="g-kw">Funcionalidade:</span> Registro e consulta de leituras de consumo de energia
+  Como sistema de monitoramento IoT da empresa
+  Quero registrar e consultar as leituras de consumo dos equipamentos
+  Para acompanhar o gasto de energia e identificar desperdícios
+
+  <span class="g-tag">@smoke @positivo @contrato</span>
+  <span class="g-kw">Cenário:</span> Consultar as leituras de consumo com paginação
+    <span class="g-kw">Quando </span>eu consultar o endpoint <span class="g-str">"/api/leituras"</span> com os filtros:
+      <span class="g-tab">| filtro   | valor |</span>
+      <span class="g-tab">| page     | 1     |</span>
+      <span class="g-tab">| pageSize | 5     |</span>
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>o corpo da resposta deve conter os valores:
+      <span class="g-tab">| campo    | valor |</span>
+      <span class="g-tab">| page     | 1     |</span>
+      <span class="g-tab">| pageSize | 5     |</span>
+    <span class="g-kw">E </span>a lista <span class="g-str">"items"</span> da resposta deve ter no máximo 5 registros
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Leituras paginadas"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@positivo @contrato</span>
+  <span class="g-kw">Cenário:</span> Registrar a leitura de consumo de um equipamento ligado
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que o equipamento 2 esteja ligado
+    <span class="g-kw">E </span>que eu tenha os seguintes dados da leitura:
+      <span class="g-tab">| campo         | valor                |</span>
+      <span class="g-tab">| equipamentoId | 2                    |</span>
+      <span class="g-tab">| dataHora      | 2026-10-15T10:00:00Z |</span>
+      <span class="g-tab">| consumoKwh    | 150.75               |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/leituras"</span> de registro de leitura
+    <span class="g-kw">Então </span>o status code da resposta deve ser 201
+    <span class="g-kw">E </span>o corpo da resposta deve conter os valores:
+      <span class="g-tab">| campo           | valor      |</span>
+      <span class="g-tab">| equipamentoId   | 2          |</span>
+      <span class="g-tab">| equipamentoNome | Esteira 01 |</span>
+      <span class="g-tab">| setorNome       | Producao   |</span>
+      <span class="g-tab">| consumoKwh      | 150.75     |</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Leitura registrada"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@positivo</span>
+  <span class="g-kw">Cenário:</span> Leitura que ultrapassa o limite mensal do setor gera alerta de consumo
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que o equipamento 3 esteja ligado
+    <span class="g-kw">E </span>que eu tenha os seguintes dados da leitura:
+      <span class="g-tab">| campo         | valor                |</span>
+      <span class="g-tab">| equipamentoId | 3                    |</span>
+      <span class="g-tab">| dataHora      | 2026-10-20T08:00:00Z |</span>
+      <span class="g-tab">| consumoKwh    | 9000                 |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/leituras"</span> de registro de leitura
+    <span class="g-kw">Então </span>o status code da resposta deve ser 201
+    <span class="g-kw">E </span>deve existir um alerta de consumo em aberto para o setor <span class="g-str">"Escritorio"</span>
+
+  <span class="g-tag">@negativo</span>
+  <span class="g-kw">Cenário:</span> Registrar leitura sem estar autenticado
+    <span class="g-kw">Dado </span>que eu não esteja autenticado
+    <span class="g-kw">E </span>que eu tenha os seguintes dados da leitura:
+      <span class="g-tab">| campo         | valor                |</span>
+      <span class="g-tab">| equipamentoId | 2                    |</span>
+      <span class="g-tab">| dataHora      | 2026-10-15T10:00:00Z |</span>
+      <span class="g-tab">| consumoKwh    | 10                   |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/leituras"</span> de registro de leitura
+    <span class="g-kw">Então </span>o status code da resposta deve ser 401
+    <span class="g-kw">E </span>a resposta deve exigir autenticação do tipo <span class="g-str">"Bearer"</span>
+
+  <span class="g-tag">@negativo @contrato</span>
+  <span class="g-kw">Cenário:</span> Registrar leitura com consumo negativo
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que eu tenha os seguintes dados da leitura:
+      <span class="g-tab">| campo         | valor                |</span>
+      <span class="g-tab">| equipamentoId | 2                    |</span>
+      <span class="g-tab">| dataHora      | 2026-10-15T10:00:00Z |</span>
+      <span class="g-tab">| consumoKwh    | -5                   |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/leituras"</span> de registro de leitura
+    <span class="g-kw">Então </span>o status code da resposta deve ser 400
+    <span class="g-kw">E </span>a resposta deve apontar erro de validação no campo <span class="g-str">"ConsumoKwh"</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Erro de validação"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@negativo @contrato</span>
+  <span class="g-kw">Cenário:</span> Registrar leitura para um equipamento inexistente
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que eu tenha os seguintes dados da leitura:
+      <span class="g-tab">| campo         | valor                |</span>
+      <span class="g-tab">| equipamentoId | 9999                 |</span>
+      <span class="g-tab">| dataHora      | 2026-10-15T10:00:00Z |</span>
+      <span class="g-tab">| consumoKwh    | 10                   |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/leituras"</span> de registro de leitura
+    <span class="g-kw">Então </span>o status code da resposta deve ser 404
+    <span class="g-kw">E </span>o corpo de resposta de erro da api deve retornar a mensagem <span class="g-str">"Equipamento 9999 nao encontrado."</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Erro da API"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado</pre><div class="legenda">Código-fonte 2 - Leituras.feature - Linguagem: Gherkin</div></div>
+<h3>4.3 Alertas de consumo - <code>Alertas.feature</code> (5 cenários)</h3>
+<p>Valida a consulta dos alertas (só com autenticação) e a resolução de um alerta. Para governança, o teste confere que a data de resolução fica registrada (rastreabilidade) e que um alerta já resolvido não pode ser resolvido de novo. A pré-condição <i>"que exista um alerta de consumo em aberto"</i> usa um alerta aberto ou, se não houver, registra uma leitura acima do limite para a própria API gerar o alerta.</p>
+<div class="codigo"><pre><span class="g-com"># language: pt</span>
+<span class="g-tag">@regressivo @ambiental @governanca</span>
+<span class="g-kw">Funcionalidade:</span> Gestão dos alertas de consumo excessivo de energia
+  Como gestor de energia da empresa
+  Quero consultar e resolver os alertas de consumo acima do limite
+  Para agir contra o desperdício e manter o registro (rastreabilidade) de cada tratativa
+
+  <span class="g-tag">@negativo</span>
+  <span class="g-kw">Cenário:</span> Consultar alertas sem estar autenticado
+    <span class="g-kw">Dado </span>que eu não esteja autenticado
+    <span class="g-kw">Quando </span>eu consultar o endpoint <span class="g-str">"/api/alertas"</span> com os filtros:
+      <span class="g-tab">| filtro | valor |</span>
+      <span class="g-tab">| page   | 1     |</span>
+    <span class="g-kw">Então </span>o status code da resposta deve ser 401
+    <span class="g-kw">E </span>a resposta deve exigir autenticação do tipo <span class="g-str">"Bearer"</span>
+
+  <span class="g-tag">@smoke @positivo @contrato</span>
+  <span class="g-kw">Cenário:</span> Consultar os alertas de consumo estando autenticado
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">Quando </span>eu consultar o endpoint <span class="g-str">"/api/alertas"</span> com os filtros:
+      <span class="g-tab">| filtro   | valor |</span>
+      <span class="g-tab">| page     | 1     |</span>
+      <span class="g-tab">| pageSize | 10    |</span>
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>o corpo da resposta deve conter os valores:
+      <span class="g-tab">| campo    | valor |</span>
+      <span class="g-tab">| page     | 1     |</span>
+      <span class="g-tab">| pageSize | 10    |</span>
+    <span class="g-kw">E </span>a lista <span class="g-str">"items"</span> da resposta deve ter no máximo 10 registros
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Alertas paginados"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@positivo @contrato</span>
+  <span class="g-kw">Cenário:</span> Resolver um alerta de consumo em aberto
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que exista um alerta de consumo em aberto
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/alertas/{id}/resolver"</span> de resolução do alerta
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>o corpo da resposta deve conter os valores:
+      <span class="g-tab">| campo     | valor |</span>
+      <span class="g-tab">| resolvido | true  |</span>
+    <span class="g-kw">E </span>a data de resolução do alerta deve estar registrada
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Alerta"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@negativo @contrato</span>
+  <span class="g-kw">Cenário:</span> Não permitir resolver novamente um alerta já resolvido
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que exista um alerta de consumo já resolvido
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/alertas/{id}/resolver"</span> de resolução do alerta
+    <span class="g-kw">Então </span>o status code da resposta deve ser 400
+    <span class="g-kw">E </span>o corpo de resposta de erro da api deve retornar a mensagem <span class="g-str">"Alerta ja esta resolvido."</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Erro da API"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@negativo</span>
+  <span class="g-kw">Cenário:</span> Resolver um alerta inexistente
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que o alerta informado seja o de ID 999999
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/alertas/{id}/resolver"</span> de resolução do alerta
+    <span class="g-kw">Então </span>o status code da resposta deve ser 404
+    <span class="g-kw">E </span>o corpo de resposta de erro da api deve retornar a mensagem <span class="g-str">"Alerta 999999 nao encontrado."</span></pre><div class="legenda">Código-fonte 3 - Alertas.feature - Linguagem: Gherkin</div></div>
+<h3>4.4 Equipamentos - <code>Equipamentos.feature</code> (7 cenários)</h3>
+<p>Testa a consulta de equipamentos e o desligamento/religamento remoto, que é a ação usada para evitar desperdício de energia. Como desligar é uma ação crítica, há cenários garantindo que ela exige token e que estados inválidos são recusados. A tag <code>@religar-equipamento</code> aciona um Hook que religa o equipamento ao final, deixando o ambiente pronto para os próximos cenários.</p>
+<div class="codigo"><pre><span class="g-com"># language: pt</span>
+<span class="g-tag">@regressivo @ambiental @governanca</span>
+<span class="g-kw">Funcionalidade:</span> Consulta e controle remoto de equipamentos monitorados
+  Como gestor de energia da empresa
+  Quero consultar os equipamentos e ligá-los ou desligá-los remotamente
+  Para evitar desperdício de energia, permitindo essa ação crítica somente a administradores
+
+  <span class="g-tag">@smoke @positivo @contrato</span>
+  <span class="g-kw">Cenário:</span> Consultar os detalhes de um equipamento existente
+    <span class="g-kw">Quando </span>eu consultar o equipamento 1 no endpoint <span class="g-str">"/api/equipamentos"</span>
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>o corpo da resposta deve conter os valores:
+      <span class="g-tab">| campo                | valor         |</span>
+      <span class="g-tab">| id                   | 1             |</span>
+      <span class="g-tab">| nome                 | Compressor 01 |</span>
+      <span class="g-tab">| numeroSerie          | CMP-001       |</span>
+      <span class="g-tab">| setorNome            | Producao      |</span>
+      <span class="g-tab">| potenciaNominalWatts | 15000         |</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Equipamento"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@negativo @contrato</span>
+  <span class="g-kw">Cenário:</span> Consultar um equipamento inexistente
+    <span class="g-kw">Quando </span>eu consultar o equipamento 9999 no endpoint <span class="g-str">"/api/equipamentos"</span>
+    <span class="g-kw">Então </span>o status code da resposta deve ser 404
+    <span class="g-kw">E </span>o corpo de resposta de erro da api deve retornar a mensagem <span class="g-str">"Equipamento 9999 nao encontrado."</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Erro da API"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@positivo @contrato @religar-equipamento</span>
+  <span class="g-kw">Cenário:</span> Desligar remotamente um equipamento ligado
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que o equipamento 4 esteja ligado
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/equipamentos/{id}/desligar"</span> do equipamento 4
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>o corpo da resposta deve conter os valores:
+      <span class="g-tab">| campo | valor |</span>
+      <span class="g-tab">| id    | 4     |</span>
+      <span class="g-tab">| ativo | false |</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Equipamento"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@positivo @contrato @religar-equipamento</span>
+  <span class="g-kw">Cenário:</span> Ligar remotamente um equipamento desligado
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que o equipamento 4 esteja desligado
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/equipamentos/{id}/ligar"</span> do equipamento 4
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>o corpo da resposta deve conter os valores:
+      <span class="g-tab">| campo | valor |</span>
+      <span class="g-tab">| id    | 4     |</span>
+      <span class="g-tab">| ativo | true  |</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Equipamento"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@negativo</span>
+  <span class="g-kw">Cenário:</span> Não permitir ligar um equipamento que já está ligado
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que o equipamento 4 esteja ligado
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/equipamentos/{id}/ligar"</span> do equipamento 4
+    <span class="g-kw">Então </span>o status code da resposta deve ser 400
+    <span class="g-kw">E </span>o corpo de resposta de erro da api deve retornar a mensagem <span class="g-str">"Equipamento ja esta ligado."</span>
+
+  <span class="g-tag">@negativo</span>
+  <span class="g-kw">Cenário:</span> Não permitir desligar um equipamento sem estar autenticado
+    <span class="g-kw">Dado </span>que eu não esteja autenticado
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/equipamentos/{id}/desligar"</span> do equipamento 4
+    <span class="g-kw">Então </span>o status code da resposta deve ser 401
+    <span class="g-kw">E </span>a resposta deve exigir autenticação do tipo <span class="g-str">"Bearer"</span>
+
+  <span class="g-tag">@negativo @religar-equipamento</span>
+  <span class="g-kw">Cenário:</span> Equipamento desligado não aceita novas leituras de consumo
+    <span class="g-kw">Dado </span>que eu esteja autenticado como administrador
+    <span class="g-kw">E </span>que o equipamento 4 esteja desligado
+    <span class="g-kw">E </span>que eu tenha os seguintes dados da leitura:
+      <span class="g-tab">| campo         | valor                |</span>
+      <span class="g-tab">| equipamentoId | 4                    |</span>
+      <span class="g-tab">| dataHora      | 2026-10-15T10:00:00Z |</span>
+      <span class="g-tab">| consumoKwh    | 25                   |</span>
+    <span class="g-kw">Quando </span>eu enviar a requisição para o endpoint <span class="g-str">"/api/leituras"</span> de registro de leitura
+    <span class="g-kw">Então </span>o status code da resposta deve ser 400
+    <span class="g-kw">E </span>o corpo de resposta de erro da api deve retornar a mensagem <span class="g-str">"Equipamento esta desligado e nao pode registrar leituras."</span></pre><div class="legenda">Código-fonte 4 - Equipamentos.feature - Linguagem: Gherkin</div></div>
+<h3>4.5 Painel de consumo por setor - <code>Dashboard.feature</code> (3 cenários)</h3>
+<p>Valida o relatório de consumo agregado por setor, usado para transparência dos indicadores ambientais: setores e limites corretos, período sem leituras com consumo zero e rejeição de data em formato inválido.</p>
+<div class="codigo"><pre><span class="g-com"># language: pt</span>
+<span class="g-tag">@regressivo @ambiental @governanca</span>
+<span class="g-kw">Funcionalidade:</span> Painel de consumo de energia por setor
+  Como diretoria de sustentabilidade (ESG)
+  Quero visualizar o consumo de energia agregado por setor
+  Para comparar com as metas de consumo e dar transparência aos indicadores ambientais
+
+  <span class="g-tag">@smoke @positivo @contrato</span>
+  <span class="g-kw">Cenário:</span> Consultar o consumo de energia por setor
+    <span class="g-kw">Quando </span>eu consultar o endpoint <span class="g-str">"/api/dashboard/consumo-por-setor"</span> com os filtros:
+      <span class="g-tab">| filtro     | valor      |</span>
+      <span class="g-tab">| dataInicio | 2026-10-01 |</span>
+      <span class="g-tab">| dataFim    | 2026-10-31 |</span>
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>a resposta deve conter os setores:
+      <span class="g-tab">| setor      | limiteMensalKwh |</span>
+      <span class="g-tab">| Producao   | 50000           |</span>
+      <span class="g-tab">| Escritorio | 8000            |</span>
+      <span class="g-tab">| Armazem    | 15000           |</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Consumo por setor"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado
+
+  <span class="g-tag">@positivo</span>
+  <span class="g-kw">Cenário:</span> Consultar o consumo de um período sem leituras registradas
+    <span class="g-kw">Quando </span>eu consultar o endpoint <span class="g-str">"/api/dashboard/consumo-por-setor"</span> com os filtros:
+      <span class="g-tab">| filtro     | valor      |</span>
+      <span class="g-tab">| dataInicio | 2000-01-01 |</span>
+      <span class="g-tab">| dataFim    | 2000-01-31 |</span>
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>todos os setores devem apresentar consumo total igual a 0
+
+  <span class="g-tag">@negativo @contrato</span>
+  <span class="g-kw">Cenário:</span> Consultar o consumo informando uma data em formato inválido
+    <span class="g-kw">Quando </span>eu consultar o endpoint <span class="g-str">"/api/dashboard/consumo-por-setor"</span> com os filtros:
+      <span class="g-tab">| filtro     | valor      |</span>
+      <span class="g-tab">| dataInicio | 31-13-2026 |</span>
+    <span class="g-kw">Então </span>o status code da resposta deve ser 400
+    <span class="g-kw">E </span>a resposta deve apontar erro de validação no campo <span class="g-str">"DataInicio"</span>
+    <span class="g-kw">E </span>que o arquivo de contrato esperado é o <span class="g-str">"Erro de validação"</span>
+    <span class="g-kw">E </span>a resposta da requisição deve estar em conformidade com o contrato selecionado</pre><div class="legenda">Código-fonte 5 - Dashboard.feature - Linguagem: Gherkin</div></div>
+<h3>4.6 Health check - <code>SaudeApi.feature</code> (1 cenário)</h3>
+<p>Cenário de <i>smoke test</i> que confirma que a API está no ar antes dos demais testes.</p>
+<div class="codigo"><pre><span class="g-com"># language: pt</span>
+<span class="g-tag">@regressivo @smoke</span>
+<span class="g-kw">Funcionalidade:</span> Verificação de saúde (health check) da API
+  Como equipe de operações
+  Quero verificar se a API está no ar
+  Para garantir a disponibilidade do monitoramento de energia antes de cada entrega
+
+  <span class="g-kw">Cenário:</span> API de eficiência energética disponível
+    <span class="g-kw">Quando </span>eu consultar o endpoint <span class="g-str">"/health"</span> de verificação de saúde
+    <span class="g-kw">Então </span>o status code da resposta deve ser 200
+    <span class="g-kw">E </span>o corpo da resposta deve ser o texto <span class="g-str">"Healthy"</span></pre><div class="legenda">Código-fonte 6 - SaudeApi.feature - Linguagem: Gherkin</div></div>
+<h2 class="quebra">5. Testes de API</h2>
+<p>Todos os endpoints da API têm pelo menos um cenário automatizado. Em cada um são feitas três validações: <b>status code</b> (passo <i>"o status code da resposta deve ser ..."</i>), <b>corpo da resposta em JSON</b> (passos que comparam os campos retornados, as mensagens de erro e as listas) e <b>contrato</b> com JSON Schema.</p>
+<table class="pequena"><tr><th>Método</th><th>Endpoint</th><th>Status testados</th><th>Corpo (JSON) validado</th><th>Contrato</th></tr><tr><td><code>POST</code></td><td><code>/api/auth/login</code></td><td>200, 400 (regra), 400 (validação)</td><td>nome, papel, token JWT; mensagem de erro; campo com erro</td><td>Login bem-sucedido, Erro da API, Erro de validação</td></tr><tr><td><code>GET</code></td><td><code>/api/leituras</code></td><td>200</td><td>page, pageSize, tamanho da lista</td><td>Leituras paginadas</td></tr><tr><td><code>POST</code></td><td><code>/api/leituras</code></td><td>201, 400, 401, 404</td><td>equipamento, setor, consumo; erros; alerta gerado</td><td>Leitura registrada, Erro de validação, Erro da API</td></tr><tr><td><code>GET</code></td><td><code>/api/alertas</code></td><td>200, 401</td><td>page, pageSize, tamanho da lista; cabeçalho WWW-Authenticate</td><td>Alertas paginados</td></tr><tr><td><code>PATCH</code></td><td><code>/api/alertas/{id}/resolver</code></td><td>200, 400, 404</td><td>resolvido = true, data de resolução; mensagens de erro</td><td>Alerta, Erro da API</td></tr><tr><td><code>GET</code></td><td><code>/api/equipamentos/{id}</code></td><td>200, 404</td><td>id, nome, número de série, setor, potência; mensagem de erro</td><td>Equipamento, Erro da API</td></tr><tr><td><code>POST</code></td><td><code>/api/equipamentos/{id}/desligar</code></td><td>200, 401</td><td>ativo = false</td><td>Equipamento</td></tr><tr><td><code>POST</code></td><td><code>/api/equipamentos/{id}/ligar</code></td><td>200, 400</td><td>ativo = true; mensagem de erro</td><td>Equipamento</td></tr><tr><td><code>GET</code></td><td><code>/api/dashboard/consumo-por-setor</code></td><td>200, 400</td><td>setores e limites; consumo zero; campo com erro</td><td>Consumo por setor, Erro de validação</td></tr><tr><td><code>GET</code></td><td><code>/health</code></td><td>200</td><td>texto "Healthy"</td><td>(resposta em texto, sem JSON)</td></tr></table>
+<p>Os passos genéricos de validação ficam na classe <code>ComumSteps</code>. O passo <i>"o corpo da resposta deve conter os valores"</i> lê cada campo da tabela com o JsonPath do Rest Assured; números são comparados pelo valor (15000 é igual a 15000.00) e o restante como texto. Abaixo, um exemplo da ligação entre a feature, os steps e o service:</p>
+<div class="codigo"><pre>package steps;
+
+import io.cucumber.java.pt.Dado;
+import io.cucumber.java.pt.E;
+import io.cucumber.java.pt.Quando;
+import org.junit.Assert;
+import services.AlertasService;
+import services.LeiturasService;
+
+import java.util.List;
+import java.util.Map;
+
+public class LeiturasSteps {
+
+    private final LeiturasService leiturasService;
+    private final AlertasService alertasService;
+
+    public LeiturasSteps(LeiturasService leiturasService, AlertasService alertasService) {
+        this.leiturasService = leiturasService;
+        this.alertasService = alertasService;
+    }
+
+    @Dado("que eu tenha os seguintes dados da leitura:")
+    public void queEuTenhaOsSeguintesDadosDaLeitura(List&lt;Map&lt;String, String&gt;&gt; rows) {
+        for (Map&lt;String, String&gt; columns : rows) {
+            leiturasService.setFieldsLeitura(columns.get("campo"), columns.get("valor"));
+        }
+    }
+
+    @Quando("eu enviar a requisição para o endpoint {string} de registro de leitura")
+    public void euEnviarARequisicaoParaOEndpointDeRegistroDeLeitura(String endPoint) {
+        leiturasService.registrarLeitura(endPoint);
+    }
+
+    @E("deve existir um alerta de consumo em aberto para o setor {string}")
+    public void deveExistirUmAlertaDeConsumoEmAbertoParaOSetor(String setor) {
+        Assert.assertTrue("Nenhum alerta em aberto encontrado para o setor " + setor,
+                alertasService.existeAlertaAbertoParaSetor(setor));
+    }
+}</pre><div class="legenda">Código-fonte 7 - Steps das leituras (steps/LeiturasSteps.java) - Linguagem: Java</div></div>
+<div class="codigo"><pre>package services;
+
+import io.restassured.response.Response;
+import model.LeituraModel;
+import support.ContextoTeste;
+
+import java.math.BigDecimal;
+
+public class LeiturasService extends BaseService {
+
+    final LeituraModel leituraModel = new LeituraModel();
+
+    public LeiturasService(ContextoTeste contexto) {
+        super(contexto);
+    }
+
+    public void setFieldsLeitura(String field, String value) {
+        switch (field) {
+            case "equipamentoId" -&gt; leituraModel.setEquipamentoId(Integer.parseInt(value));
+            case "dataHora" -&gt; leituraModel.setDataHora(value);
+            case "consumoKwh" -&gt; leituraModel.setConsumoKwh(new BigDecimal(value));
+            default -&gt; throw new IllegalStateException("Campo inesperado: " + field);
+        }
+    }
+
+    public void registrarLeitura(String endPoint) {
+        String url = url(endPoint);
+        String bodyToSend = gson.toJson(leituraModel);
+        Response response = requisicao()
+                .body(bodyToSend)
+                .when()
+                .post(url)
+                .then()
+                .extract()
+                .response();
+        registrarResposta("POST", url, response);
+    }
+}</pre><div class="legenda">Código-fonte 8 - Service das leituras com Rest Assured (services/LeiturasService.java) - Linguagem: Java</div></div>
+<h2 class="quebra">6. Testes de contrato com JSON Schema</h2>
+<p>O teste de contrato garante que a estrutura da resposta (campos obrigatórios, tipos e formatos) continua a mesma, protegendo quem consome a API. Os contratos ficam em <code>src/test/resources/schemas</code> e usam o <i>draft-07</i> do JSON Schema. Em relação ao exemplo da aula, os contratos foram deixados mais rígidos: além de <code>required</code> e <code>type</code>, usam <code>additionalProperties: false</code> (um campo novo ou renomeado quebra o contrato), valores mínimos e um <code>pattern</code> para datas e para o token JWT.</p>
+<table class="pequena"><tr><th>Arquivo</th><th>Nome usado no cenário</th><th>Resposta validada</th></tr><tr><td><code>login-bem-sucedido.json</code></td><td>Login bem-sucedido</td><td>200 de POST /api/auth/login</td></tr><tr><td><code>leitura-registrada.json</code></td><td>Leitura registrada</td><td>201 de POST /api/leituras</td></tr><tr><td><code>leituras-paginadas.json</code></td><td>Leituras paginadas</td><td>200 de GET /api/leituras</td></tr><tr><td><code>alerta.json</code></td><td>Alerta</td><td>200 de PATCH /api/alertas/{id}/resolver</td></tr><tr><td><code>alertas-paginados.json</code></td><td>Alertas paginados</td><td>200 de GET /api/alertas</td></tr><tr><td><code>equipamento.json</code></td><td>Equipamento</td><td>200 de GET /api/equipamentos/{id} e de ligar/desligar</td></tr><tr><td><code>consumo-por-setor.json</code></td><td>Consumo por setor</td><td>200 de GET /api/dashboard/consumo-por-setor (lista)</td></tr><tr><td><code>erro-api.json</code></td><td>Erro da API</td><td>400 de regra de negócio e 404 (problem+json do middleware)</td></tr><tr><td><code>erro-validacao.json</code></td><td>Erro de validação</td><td>400 de validação de entrada (ValidationProblemDetails)</td></tr></table>
+<div class="codigo"><pre>{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Equipamento",
+  "description": "Contrato da resposta 200 de GET /api/equipamentos/{id} e de POST /api/equipamentos/{id}/ligar e /desligar",
+  "type": "object",
+  "required": ["id", "nome", "numeroSerie", "setorId", "setorNome", "ativo", "potenciaNominalWatts"],
+  "properties": {
+    "id": { "type": "integer", "minimum": 1 },
+    "nome": { "type": "string", "minLength": 1 },
+    "numeroSerie": { "type": "string", "minLength": 1 },
+    "setorId": { "type": "integer", "minimum": 1 },
+    "setorNome": { "type": "string" },
+    "ativo": { "type": "boolean" },
+    "potenciaNominalWatts": { "type": "number", "minimum": 0 }
+  },
+  "additionalProperties": false
+}</pre><div class="legenda">Código-fonte 9 - Contrato do equipamento (schemas/equipamento.json) - Linguagem: JSON</div></div>
+<p>Nos cenários, o contrato é escolhido pelo nome (<i>"que o arquivo de contrato esperado é o ..."</i>) e a validação é feita pela classe <code>ContratoService</code>. Se a resposta não seguir o contrato, o teste falha listando cada diferença encontrada (veja as Figuras 11 e 12 na seção 9).</p>
+<div class="codigo"><pre>package services;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SpecVersion;
+import com.networknt.schema.ValidationMessage;
+import org.json.JSONObject;
+import org.json.JSONTokener;
+import support.ContextoTeste;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Set;
+
+/**
+ * Testes de contrato: valida a resposta da API contra um JSON Schema (pasta src/test/resources/schemas).
+ */
+public class ContratoService {
+
+    private static final String SCHEMAS_PATH = "/schemas/";
+
+    private final ContextoTeste contexto;
+    private final ObjectMapper mapper = new ObjectMapper();
+    private JSONObject jsonSchema;
+
+    public ContratoService(ContextoTeste contexto) {
+        this.contexto = contexto;
+    }
+
+    public void setContract(String contract) throws IOException {
+        String arquivo = switch (contract) {
+            case "Login bem-sucedido" -&gt; "login-bem-sucedido.json";
+            case "Leitura registrada" -&gt; "leitura-registrada.json";
+            case "Leituras paginadas" -&gt; "leituras-paginadas.json";
+            case "Alerta" -&gt; "alerta.json";
+            case "Alertas paginados" -&gt; "alertas-paginados.json";
+            case "Equipamento" -&gt; "equipamento.json";
+            case "Consumo por setor" -&gt; "consumo-por-setor.json";
+            case "Erro da API" -&gt; "erro-api.json";
+            case "Erro de validação" -&gt; "erro-validacao.json";
+            default -&gt; throw new IllegalStateException("Contrato inesperado: " + contract);
+        };
+        jsonSchema = loadJsonFromFile(SCHEMAS_PATH + arquivo);
+    }
+
+    public Set&lt;ValidationMessage&gt; validateResponseAgainstSchema() throws IOException {
+        JsonSchemaFactory schemaFactory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
+        JsonSchema schema = schemaFactory.getSchema(jsonSchema.toString());
+        // readTree aceita tanto objeto quanto lista (o dashboard responde uma lista)
+        JsonNode jsonResponseNode = mapper.readTree(contexto.getResponse().getBody().asString());
+        return schema.validate(jsonResponseNode);
+    }
+
+    // Le o arquivo do classpath, funcionando igual na IDE, no Maven e no Docker
+    private JSONObject loadJsonFromFile(String filePath) throws IOException {
+        try (InputStream inputStream = getClass().getResourceAsStream(filePath)) {
+            if (inputStream == null) {
+                throw new IOException("Arquivo de contrato nao encontrado: " + filePath);
+            }
+            return new JSONObject(new JSONTokener(inputStream));
+        }
+    }
+}</pre><div class="legenda">Código-fonte 10 - Validação de contrato (services/ContratoService.java) - Linguagem: Java</div></div>
+<h2 class="quebra">7. Configurações</h2>
+<h3>7.1 Dependências e plugins (pom.xml)</h3>
+<p>As dependências são as da aula (Cucumber, Rest Assured, Gson, Lombok, JSON Schema Validator e org.json), mais o <code>cucumber-picocontainer</code>. O <code>maven-surefire-plugin</code> executa apenas o <code>TestRunner</code>, então o comando <code>mvn clean test</code> roda todos os cenários.</p>
+<div class="codigo"><pre>    &lt;dependencies&gt;
+        &lt;!-- Cucumber Java: escrita dos cenarios em Gherkin --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;io.cucumber&lt;/groupId&gt;
+            &lt;artifactId&gt;cucumber-java&lt;/artifactId&gt;
+            &lt;version&gt;${cucumber.version}&lt;/version&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Cucumber JUnit: executa os cenarios pelo JUnit (classe TestRunner) --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;io.cucumber&lt;/groupId&gt;
+            &lt;artifactId&gt;cucumber-junit&lt;/artifactId&gt;
+            &lt;version&gt;${cucumber.version}&lt;/version&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Cucumber PicoContainer: compartilha o estado do cenario entre as classes de steps --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;io.cucumber&lt;/groupId&gt;
+            &lt;artifactId&gt;cucumber-picocontainer&lt;/artifactId&gt;
+            &lt;version&gt;${cucumber.version}&lt;/version&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Lombok: gera getters/setters dos modelos --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.projectlombok&lt;/groupId&gt;
+            &lt;artifactId&gt;lombok&lt;/artifactId&gt;
+            &lt;version&gt;${lombok.version}&lt;/version&gt;
+            &lt;scope&gt;provided&lt;/scope&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Rest Assured: requisicoes HTTP para a API --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;io.rest-assured&lt;/groupId&gt;
+            &lt;artifactId&gt;rest-assured&lt;/artifactId&gt;
+            &lt;version&gt;5.5.0&lt;/version&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Google Gson: converte os modelos Java em JSON --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;com.google.code.gson&lt;/groupId&gt;
+            &lt;artifactId&gt;gson&lt;/artifactId&gt;
+            &lt;version&gt;2.11.0&lt;/version&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Json Schema Validator: testes de contrato --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;com.networknt&lt;/groupId&gt;
+            &lt;artifactId&gt;json-schema-validator&lt;/artifactId&gt;
+            &lt;version&gt;1.5.1&lt;/version&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Json: leitura dos arquivos de contrato --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.json&lt;/groupId&gt;
+            &lt;artifactId&gt;json&lt;/artifactId&gt;
+            &lt;version&gt;20240303&lt;/version&gt;
+        &lt;/dependency&gt;
+        &lt;!-- Desliga os logs internos do validador de JSON Schema (evita aviso do SLF4J no console) --&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.slf4j&lt;/groupId&gt;
+            &lt;artifactId&gt;slf4j-nop&lt;/artifactId&gt;
+            &lt;version&gt;2.0.13&lt;/version&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+
+    &lt;build&gt;
+        &lt;plugins&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-compiler-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.13.0&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;!-- Necessario a partir do JDK 23 para o Lombok ser processado --&gt;
+                    &lt;annotationProcessorPaths&gt;
+                        &lt;path&gt;
+                            &lt;groupId&gt;org.projectlombok&lt;/groupId&gt;
+                            &lt;artifactId&gt;lombok&lt;/artifactId&gt;
+                            &lt;version&gt;${lombok.version}&lt;/version&gt;
+                        &lt;/path&gt;
+                    &lt;/annotationProcessorPaths&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+            &lt;plugin&gt;
+                &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+                &lt;artifactId&gt;maven-surefire-plugin&lt;/artifactId&gt;
+                &lt;version&gt;3.5.2&lt;/version&gt;
+                &lt;configuration&gt;
+                    &lt;!-- O Maven executa apenas o TestRunner (que chama o Cucumber) --&gt;
+                    &lt;includes&gt;
+                        &lt;include&gt;**/TestRunner.java&lt;/include&gt;
+                    &lt;/includes&gt;
+                    &lt;argLine&gt;-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8&lt;/argLine&gt;
+                &lt;/configuration&gt;
+            &lt;/plugin&gt;
+        &lt;/plugins&gt;
+    &lt;/build&gt;</pre><div class="legenda">Código-fonte 11 - Dependências e build (pom.xml) - Linguagem: XML</div></div>
+<h3>7.2 TestRunner, Hooks e URL da API</h3>
+<div class="codigo"><pre>package runner;
+
+import io.cucumber.junit.Cucumber;
+import io.cucumber.junit.CucumberOptions;
+import org.junit.runner.RunWith;
+
+@RunWith(Cucumber.class)
+@CucumberOptions(
+        features = "src/test/resources/features",
+        glue = {"steps", "hook"},
+        tags = "@regressivo",
+        plugin = {
+                "pretty",
+                "summary",
+                "html:target/cucumber-reports.html",
+                "json:target/cucumber.json",
+                "junit:target/cucumber-junit.xml"
+        },
+        monochrome = true
+)
+public class TestRunner {
+}</pre><div class="legenda">Código-fonte 12 - Classe TestRunner (runner/TestRunner.java) - Linguagem: Java</div></div>
+<p>O <code>TestRunner</code> executa as features com a tag <code>@regressivo</code> e gera três relatórios em <code>target/</code>: HTML, JSON e JUnit XML. A classe <code>Hook</code> usa os quatro tipos de hook: <code>@BeforeAll</code> espera o <code>/health</code> da API responder (até 3 minutos, útil no Docker, onde a API espera o banco subir); <code>@Before</code> registra o início do cenário; <code>@After</code> anexa a requisição e a resposta da API no relatório HTML (evidência); e um <code>@After</code> com a tag <code>@religar-equipamento</code> religa os equipamentos desligados durante o cenário.</p>
+<div class="codigo"><pre>    @BeforeAll
+    public static void aguardarApiDisponivel() throws InterruptedException {
+        String healthUrl = ConfiguracaoApi.getBaseUrl() + "/health";
+        System.out.println("Ambiente testado: " + ConfiguracaoApi.getBaseUrl());
+        System.out.println("Aguardando a API responder em " + healthUrl + " ...");
+
+        long limite = System.currentTimeMillis() + ESPERA_MAXIMA_SEGUNDOS * 1000L;
+        while (System.currentTimeMillis() &lt; limite) {
+            try {
+                if (RestAssured.get(healthUrl).statusCode() == 200) {
+                    System.out.println("API disponivel. Iniciando os cenarios.");
+                    return;
+                }
+            } catch (Exception e) {
+                // API ainda subindo: tenta novamente
+            }
+            Thread.sleep(3000);
+        }
+        throw new IllegalStateException("A API nao respondeu em " + healthUrl + " apos " + ESPERA_MAXIMA_SEGUNDOS
+                + " segundos. Verifique se ela esta rodando (veja o README).");
+    }
+
+    (...)
+
+    /**
+     * Cenarios com a tag @religar-equipamento desligam um equipamento.
+     * Ao final, o equipamento e religado para nao afetar os demais cenarios (testes independentes).
+     */
+    @After(value = "@religar-equipamento", order = 10)
+    public void religarEquipamentos() {
+        if (contexto.getEquipamentosParaReligar().isEmpty()) {
+            return;
+        }
+        if (contexto.getToken() == null) {
+            autenticacaoService.autenticarComoAdministrador();
+        }
+        for (Integer id : new ArrayList&lt;&gt;(contexto.getEquipamentosParaReligar())) {
+            equipamentosService.garantirEstado(id, true);
+            System.out.println("Equipamento " + id + " religado apos o cenario.");
+        }
+    }</pre><div class="legenda">Código-fonte 13 - Trecho da classe Hook (hook/Hook.java) - Linguagem: Java</div></div>
+<p>A URL da API não fica fixa no código: a classe <code>ConfiguracaoApi</code> lê a propriedade <code>-Dapi.baseUrl</code> do Maven, depois a variável de ambiente <code>API_BASE_URL</code> e, se nenhuma existir, usa <code>http://localhost:8080</code> (API no Docker). Assim o mesmo projeto roda contra a API local, em container ou no pipeline.</p>
+<h3>7.3 Docker</h3>
+<p>O <code>Dockerfile</code> dos testes usa a imagem oficial do Maven com Java 21. O arquivo <code>docker-compose.testes.yml</code> adiciona o serviço <code>testes</code> à orquestração que já existia (API + SQL Server), acessando a API pelo nome do serviço na rede do compose.</p>
+<div class="codigo"><pre># Imagem que executa os testes automatizados (BDD) contra a API.
+# O endereco da API vem da variavel API_BASE_URL (padrao: servico "api" do docker-compose).
+FROM maven:3.9.9-eclipse-temurin-21
+
+WORKDIR /testes
+
+# Baixa as dependencias primeiro: essa camada fica em cache enquanto o pom.xml nao mudar
+COPY pom.xml .
+RUN mvn -B -q dependency:go-offline
+
+COPY src ./src
+
+ENV API_BASE_URL=http://api:8080
+
+# Sem "clean": a pasta target pode estar montada como volume para guardar o relatorio no host
+CMD ["mvn", "-B", "test"]</pre><div class="legenda">Código-fonte 14 - Dockerfile dos testes (testes-automatizados/Dockerfile) - Linguagem: Dockerfile</div></div>
+<div class="codigo"><pre># Executa os testes automatizados (BDD - Cucumber + Rest Assured) contra a API, tudo em containers.
+# Usado JUNTO com o docker-compose.yml (que sobe a API e o SQL Server).
+#
+# Na raiz do projeto, com o arquivo .env criado (copie o .env.example):
+#   docker compose -f docker-compose.yml -f docker-compose.testes.yml up --build --exit-code-from testes
+#
+# Ao final o relatorio fica em testes-automatizados/target/cucumber-reports.html
+# Para derrubar tudo depois: docker compose -f docker-compose.yml -f docker-compose.testes.yml down -v
+
+services:
+  testes:
+    build:
+      context: ./testes-automatizados
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    environment:
+      # Dentro da rede do compose a API e acessada pelo nome do servico
+      API_BASE_URL: http://api:8080
+    volumes:
+      - ./testes-automatizados/target:/testes/target
+    networks:
+      - backend</pre><div class="legenda">Código-fonte 15 - docker-compose.testes.yml - Linguagem: YAML</div></div>
+<h3>7.4 Pipeline (GitHub Actions)</h3>
+<p>Foi adicionado o job <b>Testes BDD (API)</b> ao pipeline <code>.github/workflows/ci-cd.yml</code> da atividade de DevOps. Ele roda depois do build e dos testes unitários: sobe a API com SQL Server via <code>docker compose</code>, executa <code>./mvnw clean test</code>, executa de novo pelo container de testes (validando o Dockerfile), publica um resumo dos cenários na aba <i>Summary</i> e o relatório HTML como artefato. O job de imagem Docker agora depende dele (<code>needs: [build-test, testes-bdd]</code>), então se algum cenário falhar a imagem não é publicada e nada é implantado em staging ou produção.</p>
+<div class="codigo"><pre>  testes-bdd:
+    name: Testes BDD (API)
+    needs: build-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Instalar Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Gerar segredos do ambiente de teste
+        run: |
+          SA="Aa1$(openssl rand -hex 12)"
+          JWT="$(openssl rand -hex 32)"
+          echo "::add-mask::${SA}"
+          echo "::add-mask::${JWT}"
+          echo "SA_PASSWORD=${SA}" &gt;&gt; "$GITHUB_ENV"
+          echo "JWT_SECRET_KEY=${JWT}" &gt;&gt; "$GITHUB_ENV"
+
+      - name: Subir API + SQL Server
+        run: docker compose -p esg-testes -f docker-compose.yml up -d --build
+
+      - name: Executar testes BDD (mvn clean test)
+        working-directory: testes-automatizados
+        run: ./mvnw -B clean test -Dapi.baseUrl=http://localhost:8080
+
+      - name: Executar testes BDD no container de testes (Dockerfile)
+        run: &gt;
+          docker compose -p esg-testes -f docker-compose.yml -f docker-compose.testes.yml
+          run --rm --build testes
+
+      - name: Resumo dos testes
+        if: always()
+        run: python3 scripts/resumo-testes-bdd.py testes-automatizados/target/cucumber.json &gt;&gt; "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar relatorio dos testes BDD
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: relatorio-testes-bdd
+          path: |
+            testes-automatizados/target/cucumber-reports.html
+            testes-automatizados/target/cucumber.json
+            testes-automatizados/target/cucumber-junit.xml
+          if-no-files-found: warn
+
+      - name: Logs da API
+        if: failure()
+        run: docker compose -p esg-testes -f docker-compose.yml logs api | tail -n 100 || true
+
+      - name: Encerrar ambiente de teste
+        if: always()
+        run: docker compose -p esg-testes -f docker-compose.yml -f docker-compose.testes.yml down -v || true</pre><div class="legenda">Código-fonte 16 - Job de testes BDD (.github/workflows/ci-cd.yml) - Linguagem: YAML</div></div>
+<h2>8. Como executar os testes</h2>
+<table>
+  <tr><th>Forma</th><th>Comandos</th></tr>
+  <tr><td>Tudo em Docker (API + banco + testes)</td><td>Na raiz, com o <code>.env</code> criado (<code>copy .env.example .env</code>):<br><code>docker compose -f docker-compose.yml -f docker-compose.testes.yml up --build --exit-code-from testes</code></td></tr>
+  <tr><td>API no Docker, testes na máquina</td><td><code>docker compose up -d --build</code><br><code>cd testes-automatizados</code><br><code>mvnw.cmd clean test</code> (Windows) ou <code>./mvnw clean test</code></td></tr>
+  <tr><td>Sem Docker (Windows)</td><td><code>executar-api.bat</code> (API em http://localhost:5000) e depois <code>executar-testes-bdd.bat</code>, que roda os testes e abre o relatório HTML</td></tr>
+  <tr><td>IntelliJ</td><td>Abrir a pasta <code>testes-automatizados</code> (plugins Cucumber for Java e Lombok) e executar a classe <code>runner/TestRunner</code></td></tr>
+  <tr><td>Somente algumas tags</td><td><code>mvnw.cmd clean test -Dcucumber.filter.tags="@smoke"</code><br><code>mvnw.cmd clean test -Dcucumber.filter.tags="@contrato and @negativo"</code></td></tr>
+  <tr><td>Pipeline</td><td>Automático a cada push na branch <code>main</code> (ou <i>Run workflow</i> na aba Actions)</td></tr>
+</table>
+<p>Pré-requisito para rodar fora do Docker: JDK 21 ou superior. Ao final da execução os relatórios ficam em
+<code>testes-automatizados/target/</code> (<code>cucumber-reports.html</code>, <code>cucumber.json</code> e
+<code>cucumber-junit.xml</code>). As instruções completas estão no <code>README.md</code> da pasta
+<code>testes-automatizados</code>.</p>
+<h2 class="quebra">9. Evidências de execução</h2>
+<p>A suíte foi executada localmente no Windows 11 (JDK 24, compilando para Java 21) contra a API rodando com <code>dotnet run</code> e o SQL Server local, com o comando <code>./mvnw -B clean test -Dapi.baseUrl=http://localhost:5000</code>. As Figuras 1 e 2 mostram trechos da saída real do console (as linhas omitidas estão marcadas com "(...)").</p>
+<figure class=""><img src="prints-testes/01-console-inicio.png"><figcaption>Figura 1 - Início da execução: build do Maven, Hook @BeforeAll aguardando a API e o primeiro cenário (401 sem token).</figcaption></figure>
+<figure class=""><img src="prints-testes/02-console-resultado.png"><figcaption>Figura 2 - Fim da execução: 26 cenários e 150 steps aprovados, Tests run: 26, Failures: 0 e BUILD SUCCESS.</figcaption></figure>
+<figure class=""><img src="prints-testes/03-relatorio-resumo.png"><figcaption>Figura 3 - Relatório HTML do Cucumber (target/cucumber-reports.html): 26 cenários executados, 100% aprovados.</figcaption></figure>
+<p>No relatório HTML, cada cenário traz os passos executados e, no final, a requisição e a resposta da API anexadas pelo Hook. As figuras a seguir mostram cenários positivos e negativos de cada recurso.</p>
+<figure class="cenario"><img src="prints-testes/04-cenario-login-ok.png"><figcaption>Figura 4 - Login bem-sucedido: status 200, nome e papel conferidos, token JWT e contrato "Login bem-sucedido".</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/05-cenario-login-senha.png"><figcaption>Figura 5 - Login com senha incorreta: status 400, mensagem de erro e contrato "Erro da API".</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/06-cenario-leitura-201.png"><figcaption>Figura 6 - Registro de leitura de consumo: status 201, campos da resposta e contrato "Leitura registrada".</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/07-cenario-leitura-401.png"><figcaption>Figura 7 - Registro de leitura sem token: status 401 e cabeçalho WWW-Authenticate: Bearer.</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/08-cenario-alerta-resolver.png"><figcaption>Figura 8 - Resolução de alerta de consumo: status 200, resolvido = true, data de resolução registrada e contrato "Alerta".</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/09-cenario-equipamento-desligar.png"><figcaption>Figura 9 - Desligamento remoto de equipamento (ADMIN): status 200, ativo = false e contrato "Equipamento".</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/10-cenario-dashboard-400.png"><figcaption>Figura 10 - Painel de consumo com data inválida: status 400, erro de validação no campo DataInicio e contrato "Erro de validação".</figcaption></figure>
+<h3>Teste de contrato detectando uma quebra</h3>
+<p>Para conferir que o teste de contrato realmente falha quando a resposta muda, o contrato <code>equipamento.json</code> foi alterado de propósito para esperar o campo <code>ativo</code> como texto (<code>"type": "string"</code>), enquanto a API devolve um booleano. O cenário falhou apontando exatamente a diferença (<code>$.ativo: boolean encontrado, string esperado</code>) e o Maven terminou com BUILD FAILURE. Depois o contrato foi restaurado e a suíte completa voltou a passar.</p>
+<figure class=""><img src="prints-testes/11-falha-contrato-console.png"><figcaption>Figura 11 - Console da execução com o contrato alterado: o passo de contrato falha e o build termina com BUILD FAILURE.</figcaption></figure>
+<figure class=""><img src="prints-testes/12-falha-contrato-relatorio.png"><figcaption>Figura 12 - Relatório HTML da mesma execução, com o erro de contrato destacado no passo que falhou.</figcaption></figure>
+<h2>10. Conclusão</h2>
+<p>Com o BDD, o comportamento esperado da API ficou descrito em português, de um jeito que dá para entender sem ler
+o código, e cada frase dos cenários virou um teste automatizado. Os 26 cenários cobrem todos os endpoints com
+caminhos felizes e de falha, validando status code, corpo da resposta e contrato com JSON Schema. Os testes também
+protegem as regras ligadas ao tema ESG do projeto: a geração de alertas quando o consumo passa do limite, o controle
+remoto dos equipamentos, o controle de acesso e a rastreabilidade da resolução dos alertas.</p>
+<p>A execução é simples (um comando Maven, um <code>.bat</code> ou o Docker Compose) e foi integrada ao pipeline de
+CI/CD, onde os testes BDD funcionam como uma barreira de qualidade: se algum cenário falhar, a nova versão não é
+publicada nem implantada.</p>
+
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Login bem-sucedido",
+  "description": "Contrato da resposta 200 de POST /api/auth/login",
+  "type": "object",
+  "required": ["token", "expiraEm", "nome", "papel"],
+  "properties": {
+    "token": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+    },
+    "expiraEm": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+    },
+    "nome": { "type": "string", "minLength": 1 },
+    "papel": { "type": "string", "enum": ["ADMIN", "OPERADOR"] }
+  },
+  "additionalProperties": false
+}
