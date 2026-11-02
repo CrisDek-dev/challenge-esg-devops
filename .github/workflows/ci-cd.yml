@@ -98,24 +98,12 @@ jobs:
           docker compose -p esg-testes -f docker-compose.yml -f docker-compose.testes.yml
           run --rm --build testes
 
-      - name: Resumo dos testes
-        if: always()
-        run: python3 scripts/resumo-testes-bdd.py testes-automatizados/target/cucumber.json >> "$GITHUB_STEP_SUMMARY"
-
       - name: Publicar relatorio dos testes BDD
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: relatorio-testes-bdd
-          path: |
-            testes-automatizados/target/cucumber-reports.html
-            testes-automatizados/target/cucumber.json
-            testes-automatizados/target/cucumber-junit.xml
-          if-no-files-found: warn
-
-      - name: Logs da API
-        if: failure()
-        run: docker compose -p esg-testes -f docker-compose.yml logs api | tail -n 100 || true
+          path: testes-automatizados/target/cucumber-reports.html
 
       - name: Encerrar ambiente de teste
         if: always()

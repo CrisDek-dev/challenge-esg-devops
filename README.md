@@ -41,11 +41,7 @@ Instruções completas no [README dos testes](testes-automatizados/README.md).
 
 **Pipeline com o job de testes BDD (todos os jobs com sucesso)**
 
-![Pipeline com testes BDD](docs/prints-testes/13-pipeline-geral.png)
-
-**Resumo dos 26 cenários publicado pelo pipeline**
-
-![Resumo dos testes BDD](docs/prints-testes/14-pipeline-resumo-cenarios.png)
+![Pipeline com testes BDD](docs/prints-testes/07-pipeline-geral.png)
 
 ---
 
@@ -135,7 +131,7 @@ O pipeline roda a cada `push` na branch `main` e também pode ser disparado manu
 | # | Job | O que faz |
 |---|-----|-----------|
 | 1 | **Build e testes** | Restaura as dependências, compila em Release e roda os 6 testes xUnit. O resultado (.trx) fica salvo como artefato `test-results` da execução. |
-| 2 | **Testes BDD (API)** | Sobe API + SQL Server com `docker compose`, executa os 26 cenários Cucumber (`./mvnw clean test`) e de novo pelo container de testes; publica o resumo e o relatório `relatorio-testes-bdd`. |
+| 2 | **Testes BDD (API)** | Sobe API + SQL Server com `docker compose`, executa os 26 cenários Cucumber (`./mvnw clean test`) e de novo pelo container de testes; publica o relatório `relatorio-testes-bdd`. |
 | 3 | **Imagem Docker** | Só roda se os jobs 1 e 2 passaram. Builda a imagem com o `Dockerfile` e publica no GitHub Container Registry com duas tags: `sha-<commit>` e `latest`. |
 | 4 | **Deploy - Staging** | Baixa a imagem, sobe API + SQL Server com `docker compose` usando `env/staging.env` (porta 8081) e roda o smoke test. |
 | 5 | **Deploy - Producao** | Só roda se staging passou. Mesma imagem, configuração de `env/production.env` (porta 8082) e smoke test de novo. |
@@ -278,7 +274,7 @@ challenge-esg-devops/
 ├── testes-automatizados/         - testes BDD (Java + Cucumber + Rest Assured + JSON Schema)
 ├── docs/                         - documentação em PDF e prints
 ├── env/                          - configuração não secreta de staging e produção
-├── scripts/                      - deploy.sh, smoke-test.sh e resumo-testes-bdd.py
+├── scripts/                      - deploy.sh e smoke-test.sh
 ├── insomnia/                     - collection com os endpoints
 ├── Dockerfile
 ├── docker-compose.yml

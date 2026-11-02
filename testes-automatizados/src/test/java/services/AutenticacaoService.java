@@ -3,7 +3,6 @@ package services;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import model.LoginModel;
-import support.ConfiguracaoApi;
 import support.ContextoTeste;
 
 import static io.restassured.RestAssured.given;
@@ -11,6 +10,10 @@ import static io.restassured.RestAssured.given;
 public class AutenticacaoService extends BaseService {
 
     private static final String ENDPOINT_LOGIN = "/api/auth/login";
+
+    // Usuario criado pelo seed da API (dados de teste)
+    private static final String EMAIL_ADMIN = "admin@energia.com";
+    private static final String SENHA_ADMIN = "admin@123";
 
     final LoginModel loginModel = new LoginModel();
 
@@ -27,19 +30,14 @@ public class AutenticacaoService extends BaseService {
     }
 
     public void login(String endPoint) {
-        String url = url(endPoint);
-        Response response = enviarLogin(url, loginModel);
-        registrarResposta("POST", url, response);
+        contexto.setResponse(enviarLogin(url(endPoint), loginModel));
     }
 
-    /**
-     * Faz login com o administrador do seed da API e guarda o token JWT no contexto,
-     * para ser usado pelas proximas requisicoes do cenario.
-     */
+    // Faz login como administrador e guarda o token JWT para as proximas requisicoes do cenario
     public void autenticarComoAdministrador() {
         LoginModel admin = new LoginModel();
-        admin.setEmail(ConfiguracaoApi.getEmailAdmin());
-        admin.setSenha(ConfiguracaoApi.getSenhaAdmin());
+        admin.setEmail(EMAIL_ADMIN);
+        admin.setSenha(SENHA_ADMIN);
 
         Response response = enviarLogin(url(ENDPOINT_LOGIN), admin);
         if (response.statusCode() != 200) {

@@ -80,7 +80,7 @@ public class AlertasService extends BaseService {
                 .then()
                 .extract()
                 .response();
-        registrarResposta("PATCH", url, response);
+        contexto.setResponse(response);
     }
 
     public boolean existeAlertaAbertoParaSetor(String setor) {

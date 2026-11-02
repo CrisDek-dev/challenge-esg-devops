@@ -33,6 +33,6 @@ public class LeiturasService extends BaseService {
                 .then()
                 .extract()
                 .response();
-        registrarResposta("POST", url, response);
+        contexto.setResponse(response);
     }
 }

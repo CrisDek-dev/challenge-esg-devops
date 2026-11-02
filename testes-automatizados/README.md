@@ -134,19 +134,16 @@ mvnw.cmd clean test -Dcucumber.filter.tags="@contrato and @negativo"
 
 O job **Testes BDD (API)** do `.github/workflows/ci-cd.yml` roda a cada push na `main`:
 sobe API + SQL Server com `docker compose`, executa `./mvnw clean test`, executa de novo pelo
-container de testes (`docker-compose.testes.yml`), publica o resumo na aba *Summary* e o
-relatório HTML como artefato `relatorio-testes-bdd`. A imagem Docker e os deploys só rodam se
-esse job passar.
+container de testes (`docker-compose.testes.yml`) e publica o relatório HTML como artefato
+`relatorio-testes-bdd`. A imagem Docker e os deploys só rodam se esse job passar.
 
 ---
 
-## Relatórios gerados (`target/`)
+## Relatório
 
-| Arquivo | Conteúdo |
-|---------|----------|
-| `cucumber-reports.html` | relatório visual, com a requisição e a resposta da API anexadas em cada cenário |
-| `cucumber.json` | resultado em JSON (usado no resumo do pipeline) |
-| `cucumber-junit.xml` | resultado no formato JUnit |
+Ao final de cada execução o Cucumber gera o relatório `target/cucumber-reports.html`, com todos
+os cenários e a resposta da API anexada em cada um (aberto automaticamente pelo
+`executar-testes-bdd.bat`).
 
 ## Como os testes ficam independentes
 
@@ -156,7 +153,7 @@ esse job passar.
   do limite do setor para a própria API gerar o alerta).
 - Cenários que desligam equipamentos têm a tag `@religar-equipamento`; um `@After` do `Hook`
   religa o equipamento no final, mesmo se o cenário falhar.
-- O `@BeforeAll` espera o `/health` responder (até 3 minutos), já que no Docker a API aguarda o
+- O `@BeforeAll` espera o `/health` responder (até 2 minutos), já que no Docker a API aguarda o
   banco e aplica as migrations antes de ficar disponível.
 
 Com isso a suíte pode ser executada várias vezes seguidas, em qualquer ordem, no mesmo banco.

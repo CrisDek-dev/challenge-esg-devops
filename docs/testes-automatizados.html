@@ -106,7 +106,7 @@ cumprindo o seu papel dentro da proposta ESG.</p>
 └── src/test/
     ├── java/
     │   ├── runner/TestRunner.java  configuração do Cucumber (features, glue, tags, relatórios)
-    │   ├── hook/Hook.java          @BeforeAll espera a API; @After anexa evidências e religa equipamentos
+    │   ├── hook/Hook.java          @BeforeAll espera a API; @After guarda a resposta no relatório
     │   ├── steps/                  ComumSteps, AutenticacaoSteps, LeiturasSteps, AlertasSteps, ...
     │   ├── services/               chamadas Rest Assured (um service por recurso) + ContratoService
     │   ├── model/                  LoginModel, LeituraModel, AlertaModel, ErroApiModel
@@ -121,8 +121,7 @@ status code, os campos do JSON e o contrato. Os passos que se repetem em todas a
 corpo, mensagem de erro e contrato) ficam em <code>ComumSteps</code>, para não duplicar código.</p>
 <p><b>Testes independentes:</b> cada cenário faz o próprio login e prepara os dados de que precisa (por exemplo,
 <i>"que o equipamento 4 esteja ligado"</i> liga o equipamento se ele estiver desligado). Por isso a suíte pode ser
-executada várias vezes seguidas, em qualquer ordem e no mesmo banco. Isso foi conferido rodando a suíte completa
-mais de uma vez em sequência, sempre com 100% de aprovação.</p>
+executada várias vezes seguidas, em qualquer ordem e no mesmo banco.</p>
 
 <h2 class="quebra">4. Cenários de teste em Gherkin</h2>
 <p>Os cenários foram escritos em português, no formato <i>Dado - Quando - Então</i>, com tabelas de dados (<i>data tables</i>) para os campos das requisições. Cada cenário tem uma tag que indica se é caminho feliz (<code>@positivo</code>) ou falha (<code>@negativo</code>), e os que validam contrato têm a tag <code>@contrato</code>. A tag <code>@regressivo</code>, aplicada em todas as funcionalidades, é a usada pelo <code>TestRunner</code>.</p>
@@ -478,10 +477,10 @@ mais de uma vez em sequência, sempre com 100% de aprovação.</p>
     <span class="g-kw">Quando </span>eu consultar o endpoint <span class="g-str">"/health"</span> de verificação de saúde
     <span class="g-kw">Então </span>o status code da resposta deve ser 200
     <span class="g-kw">E </span>o corpo da resposta deve ser o texto <span class="g-str">"Healthy"</span></pre><div class="legenda">Código-fonte 6 - SaudeApi.feature - Linguagem: Gherkin</div></div>
-<h2 class="quebra">5. Testes de API</h2>
+<h2>5. Testes de API</h2>
 <p>Todos os endpoints da API têm pelo menos um cenário automatizado. Em cada um são feitas três validações: <b>status code</b> (passo <i>"o status code da resposta deve ser ..."</i>), <b>corpo da resposta em JSON</b> (passos que comparam os campos retornados, as mensagens de erro e as listas) e <b>contrato</b> com JSON Schema.</p>
 <table class="pequena"><tr><th>Método</th><th>Endpoint</th><th>Status testados</th><th>Corpo (JSON) validado</th><th>Contrato</th></tr><tr><td><code>POST</code></td><td><code>/api/auth/login</code></td><td>200, 400 (regra), 400 (validação)</td><td>nome, papel, token JWT; mensagem de erro; campo com erro</td><td>Login bem-sucedido, Erro da API, Erro de validação</td></tr><tr><td><code>GET</code></td><td><code>/api/leituras</code></td><td>200</td><td>page, pageSize, tamanho da lista</td><td>Leituras paginadas</td></tr><tr><td><code>POST</code></td><td><code>/api/leituras</code></td><td>201, 400, 401, 404</td><td>equipamento, setor, consumo; erros; alerta gerado</td><td>Leitura registrada, Erro de validação, Erro da API</td></tr><tr><td><code>GET</code></td><td><code>/api/alertas</code></td><td>200, 401</td><td>page, pageSize, tamanho da lista; cabeçalho WWW-Authenticate</td><td>Alertas paginados</td></tr><tr><td><code>PATCH</code></td><td><code>/api/alertas/{id}/resolver</code></td><td>200, 400, 404</td><td>resolvido = true, data de resolução; mensagens de erro</td><td>Alerta, Erro da API</td></tr><tr><td><code>GET</code></td><td><code>/api/equipamentos/{id}</code></td><td>200, 404</td><td>id, nome, número de série, setor, potência; mensagem de erro</td><td>Equipamento, Erro da API</td></tr><tr><td><code>POST</code></td><td><code>/api/equipamentos/{id}/desligar</code></td><td>200, 401</td><td>ativo = false</td><td>Equipamento</td></tr><tr><td><code>POST</code></td><td><code>/api/equipamentos/{id}/ligar</code></td><td>200, 400</td><td>ativo = true; mensagem de erro</td><td>Equipamento</td></tr><tr><td><code>GET</code></td><td><code>/api/dashboard/consumo-por-setor</code></td><td>200, 400</td><td>setores e limites; consumo zero; campo com erro</td><td>Consumo por setor, Erro de validação</td></tr><tr><td><code>GET</code></td><td><code>/health</code></td><td>200</td><td>texto "Healthy"</td><td>(resposta em texto, sem JSON)</td></tr></table>
-<p>Os passos genéricos de validação ficam na classe <code>ComumSteps</code>. O passo <i>"o corpo da resposta deve conter os valores"</i> lê cada campo da tabela com o JsonPath do Rest Assured; números são comparados pelo valor (15000 é igual a 15000.00) e o restante como texto. Abaixo, um exemplo da ligação entre a feature, os steps e o service:</p>
+<p>Os passos genéricos de validação ficam na classe <code>ComumSteps</code>. O passo <i>"o corpo da resposta deve conter os valores"</i> lê cada campo da tabela com o JsonPath do Rest Assured; números são comparados pelo valor (15000 é igual a 15000.00) e o restante como texto. Exemplo de uma classe de steps, que chama o service com Rest Assured:</p>
 <div class="codigo"><pre>package steps;
 
 import io.cucumber.java.pt.Dado;
@@ -522,46 +521,8 @@ public class LeiturasSteps {
                 alertasService.existeAlertaAbertoParaSetor(setor));
     }
 }</pre><div class="legenda">Código-fonte 7 - Steps das leituras (steps/LeiturasSteps.java) - Linguagem: Java</div></div>
-<div class="codigo"><pre>package services;
-
-import io.restassured.response.Response;
-import model.LeituraModel;
-import support.ContextoTeste;
-
-import java.math.BigDecimal;
-
-public class LeiturasService extends BaseService {
-
-    final LeituraModel leituraModel = new LeituraModel();
-
-    public LeiturasService(ContextoTeste contexto) {
-        super(contexto);
-    }
-
-    public void setFieldsLeitura(String field, String value) {
-        switch (field) {
-            case "equipamentoId" -&gt; leituraModel.setEquipamentoId(Integer.parseInt(value));
-            case "dataHora" -&gt; leituraModel.setDataHora(value);
-            case "consumoKwh" -&gt; leituraModel.setConsumoKwh(new BigDecimal(value));
-            default -&gt; throw new IllegalStateException("Campo inesperado: " + field);
-        }
-    }
-
-    public void registrarLeitura(String endPoint) {
-        String url = url(endPoint);
-        String bodyToSend = gson.toJson(leituraModel);
-        Response response = requisicao()
-                .body(bodyToSend)
-                .when()
-                .post(url)
-                .then()
-                .extract()
-                .response();
-        registrarResposta("POST", url, response);
-    }
-}</pre><div class="legenda">Código-fonte 8 - Service das leituras com Rest Assured (services/LeiturasService.java) - Linguagem: Java</div></div>
-<h2 class="quebra">6. Testes de contrato com JSON Schema</h2>
-<p>O teste de contrato garante que a estrutura da resposta (campos obrigatórios, tipos e formatos) continua a mesma, protegendo quem consome a API. Os contratos ficam em <code>src/test/resources/schemas</code> e usam o <i>draft-07</i> do JSON Schema. Em relação ao exemplo da aula, os contratos foram deixados mais rígidos: além de <code>required</code> e <code>type</code>, usam <code>additionalProperties: false</code> (um campo novo ou renomeado quebra o contrato), valores mínimos e um <code>pattern</code> para datas e para o token JWT.</p>
+<h2>6. Testes de contrato com JSON Schema</h2>
+<p>O teste de contrato garante que a estrutura da resposta (campos obrigatórios, tipos e formatos) continua a mesma, protegendo quem consome a API. Os contratos ficam em <code>src/test/resources/schemas</code> e usam o <i>draft-07</i> do JSON Schema. Eles foram montados a partir das respostas reais da API, com os campos obrigatórios (<code>required</code>), os tipos (<code>type</code>) e <code>additionalProperties: false</code>, para que um campo novo ou renomeado também quebre o contrato.</p>
 <table class="pequena"><tr><th>Arquivo</th><th>Nome usado no cenário</th><th>Resposta validada</th></tr><tr><td><code>login-bem-sucedido.json</code></td><td>Login bem-sucedido</td><td>200 de POST /api/auth/login</td></tr><tr><td><code>leitura-registrada.json</code></td><td>Leitura registrada</td><td>201 de POST /api/leituras</td></tr><tr><td><code>leituras-paginadas.json</code></td><td>Leituras paginadas</td><td>200 de GET /api/leituras</td></tr><tr><td><code>alerta.json</code></td><td>Alerta</td><td>200 de PATCH /api/alertas/{id}/resolver</td></tr><tr><td><code>alertas-paginados.json</code></td><td>Alertas paginados</td><td>200 de GET /api/alertas</td></tr><tr><td><code>equipamento.json</code></td><td>Equipamento</td><td>200 de GET /api/equipamentos/{id} e de ligar/desligar</td></tr><tr><td><code>consumo-por-setor.json</code></td><td>Consumo por setor</td><td>200 de GET /api/dashboard/consumo-por-setor (lista)</td></tr><tr><td><code>erro-api.json</code></td><td>Erro da API</td><td>400 de regra de negócio e 404 (problem+json do middleware)</td></tr><tr><td><code>erro-validacao.json</code></td><td>Erro de validação</td><td>400 de validação de entrada (ValidationProblemDetails)</td></tr></table>
 <div class="codigo"><pre>{
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -579,74 +540,16 @@ public class LeiturasService extends BaseService {
     "potenciaNominalWatts": { "type": "number", "minimum": 0 }
   },
   "additionalProperties": false
-}</pre><div class="legenda">Código-fonte 9 - Contrato do equipamento (schemas/equipamento.json) - Linguagem: JSON</div></div>
-<p>Nos cenários, o contrato é escolhido pelo nome (<i>"que o arquivo de contrato esperado é o ..."</i>) e a validação é feita pela classe <code>ContratoService</code>. Se a resposta não seguir o contrato, o teste falha listando cada diferença encontrada (veja as Figuras 11 e 12 na seção 9).</p>
-<div class="codigo"><pre>package services;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
-import org.json.JSONObject;
-import org.json.JSONTokener;
-import support.ContextoTeste;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Set;
-
-/**
- * Testes de contrato: valida a resposta da API contra um JSON Schema (pasta src/test/resources/schemas).
- */
-public class ContratoService {
-
-    private static final String SCHEMAS_PATH = "/schemas/";
-
-    private final ContextoTeste contexto;
-    private final ObjectMapper mapper = new ObjectMapper();
-    private JSONObject jsonSchema;
-
-    public ContratoService(ContextoTeste contexto) {
-        this.contexto = contexto;
-    }
-
-    public void setContract(String contract) throws IOException {
-        String arquivo = switch (contract) {
-            case "Login bem-sucedido" -&gt; "login-bem-sucedido.json";
-            case "Leitura registrada" -&gt; "leitura-registrada.json";
-            case "Leituras paginadas" -&gt; "leituras-paginadas.json";
-            case "Alerta" -&gt; "alerta.json";
-            case "Alertas paginados" -&gt; "alertas-paginados.json";
-            case "Equipamento" -&gt; "equipamento.json";
-            case "Consumo por setor" -&gt; "consumo-por-setor.json";
-            case "Erro da API" -&gt; "erro-api.json";
-            case "Erro de validação" -&gt; "erro-validacao.json";
-            default -&gt; throw new IllegalStateException("Contrato inesperado: " + contract);
-        };
-        jsonSchema = loadJsonFromFile(SCHEMAS_PATH + arquivo);
-    }
-
-    public Set&lt;ValidationMessage&gt; validateResponseAgainstSchema() throws IOException {
+}</pre><div class="legenda">Código-fonte 8 - Contrato do equipamento (schemas/equipamento.json) - Linguagem: JSON</div></div>
+<p>Nos cenários, o contrato é escolhido pelo nome (<i>"que o arquivo de contrato esperado é o ..."</i>) e a validação é feita pela classe <code>ContratoService</code>. Se a resposta não seguir o contrato, o teste falha listando cada diferença encontrada (veja a Figura 6 na seção 9).</p>
+<div class="codigo"><pre>    public Set&lt;ValidationMessage&gt; validateResponseAgainstSchema() throws IOException {
         JsonSchemaFactory schemaFactory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
         JsonSchema schema = schemaFactory.getSchema(jsonSchema.toString());
         // readTree aceita tanto objeto quanto lista (o dashboard responde uma lista)
         JsonNode jsonResponseNode = mapper.readTree(contexto.getResponse().getBody().asString());
         return schema.validate(jsonResponseNode);
-    }
-
-    // Le o arquivo do classpath, funcionando igual na IDE, no Maven e no Docker
-    private JSONObject loadJsonFromFile(String filePath) throws IOException {
-        try (InputStream inputStream = getClass().getResourceAsStream(filePath)) {
-            if (inputStream == null) {
-                throw new IOException("Arquivo de contrato nao encontrado: " + filePath);
-            }
-            return new JSONObject(new JSONTokener(inputStream));
-        }
-    }
-}</pre><div class="legenda">Código-fonte 10 - Validação de contrato (services/ContratoService.java) - Linguagem: Java</div></div>
-<h2 class="quebra">7. Configurações</h2>
+    }</pre><div class="legenda">Código-fonte 9 - Método que valida a resposta (services/ContratoService.java) - Linguagem: Java</div></div>
+<h2>7. Configurações</h2>
 <h3>7.1 Dependências e plugins (pom.xml)</h3>
 <p>As dependências são as da aula (Cucumber, Rest Assured, Gson, Lombok, JSON Schema Validator e org.json), mais o <code>cucumber-picocontainer</code>. O <code>maven-surefire-plugin</code> executa apenas o <code>TestRunner</code>, então o comando <code>mvn clean test</code> roda todos os cenários.</p>
 <div class="codigo"><pre>    &lt;dependencies&gt;
@@ -742,7 +645,7 @@ public class ContratoService {
                 &lt;/configuration&gt;
             &lt;/plugin&gt;
         &lt;/plugins&gt;
-    &lt;/build&gt;</pre><div class="legenda">Código-fonte 11 - Dependências e build (pom.xml) - Linguagem: XML</div></div>
+    &lt;/build&gt;</pre><div class="legenda">Código-fonte 10 - Dependências e build (pom.xml) - Linguagem: XML</div></div>
 <h3>7.2 TestRunner, Hooks e URL da API</h3>
 <div class="codigo"><pre>package runner;
 
@@ -755,60 +658,44 @@ import org.junit.runner.RunWith;
         features = "src/test/resources/features",
         glue = {"steps", "hook"},
         tags = "@regressivo",
-        plugin = {
-                "pretty",
-                "summary",
-                "html:target/cucumber-reports.html",
-                "json:target/cucumber.json",
-                "junit:target/cucumber-junit.xml"
-        },
+        plugin = {"pretty", "summary", "html:target/cucumber-reports.html"},
         monochrome = true
 )
 public class TestRunner {
-}</pre><div class="legenda">Código-fonte 12 - Classe TestRunner (runner/TestRunner.java) - Linguagem: Java</div></div>
-<p>O <code>TestRunner</code> executa as features com a tag <code>@regressivo</code> e gera três relatórios em <code>target/</code>: HTML, JSON e JUnit XML. A classe <code>Hook</code> usa os quatro tipos de hook: <code>@BeforeAll</code> espera o <code>/health</code> da API responder (até 3 minutos, útil no Docker, onde a API espera o banco subir); <code>@Before</code> registra o início do cenário; <code>@After</code> anexa a requisição e a resposta da API no relatório HTML (evidência); e um <code>@After</code> com a tag <code>@religar-equipamento</code> religa os equipamentos desligados durante o cenário.</p>
+}</pre><div class="legenda">Código-fonte 11 - Classe TestRunner (runner/TestRunner.java) - Linguagem: Java</div></div>
+<p>O <code>TestRunner</code> executa as features com a tag <code>@regressivo</code> e gera o relatório HTML em <code>target/cucumber-reports.html</code>. A classe <code>Hook</code> segue o modelo da aula: o <code>@BeforeAll</code> espera a API responder no <code>/health</code> (no Docker ela demora alguns segundos para subir), o <code>@Before</code> e o <code>@After</code> mostram o início e o fim de cada cenário e o <code>@After</code> também guarda a resposta da API no relatório. Um <code>@After</code> com a tag <code>@religar-equipamento</code> religa o equipamento desligado nos cenários de desligamento.</p>
 <div class="codigo"><pre>    @BeforeAll
-    public static void aguardarApiDisponivel() throws InterruptedException {
-        String healthUrl = ConfiguracaoApi.getBaseUrl() + "/health";
-        System.out.println("Ambiente testado: " + ConfiguracaoApi.getBaseUrl());
-        System.out.println("Aguardando a API responder em " + healthUrl + " ...");
-
-        long limite = System.currentTimeMillis() + ESPERA_MAXIMA_SEGUNDOS * 1000L;
-        while (System.currentTimeMillis() &lt; limite) {
-            try {
-                if (RestAssured.get(healthUrl).statusCode() == 200) {
-                    System.out.println("API disponivel. Iniciando os cenarios.");
-                    return;
-                }
-            } catch (Exception e) {
-                // API ainda subindo: tenta novamente
-            }
-            Thread.sleep(3000);
-        }
-        throw new IllegalStateException("A API nao respondeu em " + healthUrl + " apos " + ESPERA_MAXIMA_SEGUNDOS
-                + " segundos. Verifique se ela esta rodando (veja o README).");
+    public static void setUpBeforeClass() throws InterruptedException {
+        System.out.println("Testando a API em: " + ConfiguracaoApi.getBaseUrl());
+        aguardarApi();
     }
 
-    (...)
+    @AfterAll
+    public static void tearDownAfterClass() {
+        System.out.println("Fim dos testes. Relatorio em target/cucumber-reports.html");
+    }
 
-    /**
-     * Cenarios com a tag @religar-equipamento desligam um equipamento.
-     * Ao final, o equipamento e religado para nao afetar os demais cenarios (testes independentes).
-     */
-    @After(value = "@religar-equipamento", order = 10)
-    public void religarEquipamentos() {
-        if (contexto.getEquipamentosParaReligar().isEmpty()) {
-            return;
+    @Before
+    public void setUp(Scenario scenario) {
+        System.out.println("Iniciando o cenario: " + scenario.getName());
+    }
+
+    @After
+    public void tearDown(Scenario scenario) {
+        // Guarda a resposta da API no relatorio HTML como evidencia do teste
+        if (contexto.getResponse() != null) {
+            scenario.attach(contexto.getResponse().asPrettyString(), "text/plain", "Resposta da API");
         }
-        if (contexto.getToken() == null) {
-            autenticacaoService.autenticarComoAdministrador();
-        }
-        for (Integer id : new ArrayList&lt;&gt;(contexto.getEquipamentosParaReligar())) {
-            equipamentosService.garantirEstado(id, true);
-            System.out.println("Equipamento " + id + " religado apos o cenario.");
-        }
-    }</pre><div class="legenda">Código-fonte 13 - Trecho da classe Hook (hook/Hook.java) - Linguagem: Java</div></div>
-<p>A URL da API não fica fixa no código: a classe <code>ConfiguracaoApi</code> lê a propriedade <code>-Dapi.baseUrl</code> do Maven, depois a variável de ambiente <code>API_BASE_URL</code> e, se nenhuma existir, usa <code>http://localhost:8080</code> (API no Docker). Assim o mesmo projeto roda contra a API local, em container ou no pipeline.</p>
+        System.out.println("Cenario finalizado: " + scenario.getName() + " - " + scenario.getStatus());
+    }
+
+    // Os cenarios com essa tag desligam o equipamento 4, entao ele e religado no final
+    @After("@religar-equipamento")
+    public void religarEquipamento() {
+        autenticacaoService.autenticarComoAdministrador();
+        equipamentosService.garantirEstado(4, true);
+    }</pre><div class="legenda">Código-fonte 12 - Trecho da classe Hook (hook/Hook.java) - Linguagem: Java</div></div>
+<p>A URL da API não fica fixa no código: a classe <code>ConfiguracaoApi</code> usa a propriedade <code>-Dapi.baseUrl</code> do Maven ou a variável de ambiente <code>API_BASE_URL</code> e, se nenhuma for informada, <code>http://localhost:8080</code> (API no Docker).</p>
 <h3>7.3 Docker</h3>
 <p>O <code>Dockerfile</code> dos testes usa a imagem oficial do Maven com Java 21. O arquivo <code>docker-compose.testes.yml</code> adiciona o serviço <code>testes</code> à orquestração que já existia (API + SQL Server), acessando a API pelo nome do serviço na rede do compose.</p>
 <div class="codigo"><pre># Imagem que executa os testes automatizados (BDD) contra a API.
@@ -826,7 +713,7 @@ COPY src ./src
 ENV API_BASE_URL=http://api:8080
 
 # Sem "clean": a pasta target pode estar montada como volume para guardar o relatorio no host
-CMD ["mvn", "-B", "test"]</pre><div class="legenda">Código-fonte 14 - Dockerfile dos testes (testes-automatizados/Dockerfile) - Linguagem: Dockerfile</div></div>
+CMD ["mvn", "-B", "test"]</pre><div class="legenda">Código-fonte 13 - Dockerfile dos testes (testes-automatizados/Dockerfile) - Linguagem: Dockerfile</div></div>
 <div class="codigo"><pre># Executa os testes automatizados (BDD - Cucumber + Rest Assured) contra a API, tudo em containers.
 # Usado JUNTO com o docker-compose.yml (que sobe a API e o SQL Server).
 #
@@ -849,9 +736,9 @@ services:
     volumes:
       - ./testes-automatizados/target:/testes/target
     networks:
-      - backend</pre><div class="legenda">Código-fonte 15 - docker-compose.testes.yml - Linguagem: YAML</div></div>
+      - backend</pre><div class="legenda">Código-fonte 14 - docker-compose.testes.yml - Linguagem: YAML</div></div>
 <h3>7.4 Pipeline (GitHub Actions)</h3>
-<p>Foi adicionado o job <b>Testes BDD (API)</b> ao pipeline <code>.github/workflows/ci-cd.yml</code> da atividade de DevOps. Ele roda depois do build e dos testes unitários: sobe a API com SQL Server via <code>docker compose</code>, executa <code>./mvnw clean test</code>, executa de novo pelo container de testes (validando o Dockerfile), publica um resumo dos cenários na aba <i>Summary</i> e o relatório HTML como artefato. O job de imagem Docker agora depende dele (<code>needs: [build-test, testes-bdd]</code>), então se algum cenário falhar a imagem não é publicada e nada é implantado em staging ou produção.</p>
+<p>Foi adicionado o job <b>Testes BDD (API)</b> ao pipeline <code>.github/workflows/ci-cd.yml</code> da atividade de DevOps. Ele roda depois do build e dos testes unitários: sobe a API com SQL Server via <code>docker compose</code>, executa <code>./mvnw clean test</code>, executa de novo pelo container de testes (validando o Dockerfile) e publica o relatório HTML como artefato. O job de imagem Docker agora depende dele (<code>needs: [build-test, testes-bdd]</code>), então se algum cenário falhar a imagem não é publicada e nada é implantado em staging ou produção.</p>
 <div class="codigo"><pre>  testes-bdd:
     name: Testes BDD (API)
     needs: build-test
@@ -889,28 +776,16 @@ services:
           docker compose -p esg-testes -f docker-compose.yml -f docker-compose.testes.yml
           run --rm --build testes
 
-      - name: Resumo dos testes
-        if: always()
-        run: python3 scripts/resumo-testes-bdd.py testes-automatizados/target/cucumber.json &gt;&gt; "$GITHUB_STEP_SUMMARY"
-
       - name: Publicar relatorio dos testes BDD
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: relatorio-testes-bdd
-          path: |
-            testes-automatizados/target/cucumber-reports.html
-            testes-automatizados/target/cucumber.json
-            testes-automatizados/target/cucumber-junit.xml
-          if-no-files-found: warn
-
-      - name: Logs da API
-        if: failure()
-        run: docker compose -p esg-testes -f docker-compose.yml logs api | tail -n 100 || true
+          path: testes-automatizados/target/cucumber-reports.html
 
       - name: Encerrar ambiente de teste
         if: always()
-        run: docker compose -p esg-testes -f docker-compose.yml -f docker-compose.testes.yml down -v || true</pre><div class="legenda">Código-fonte 16 - Job de testes BDD (.github/workflows/ci-cd.yml) - Linguagem: YAML</div></div>
+        run: docker compose -p esg-testes -f docker-compose.yml -f docker-compose.testes.yml down -v || true</pre><div class="legenda">Código-fonte 15 - Job de testes BDD (.github/workflows/ci-cd.yml) - Linguagem: YAML</div></div>
 <h2>8. Como executar os testes</h2>
 <table>
   <tr><th>Forma</th><th>Comandos</th></tr>
@@ -921,32 +796,25 @@ services:
   <tr><td>Somente algumas tags</td><td><code>mvnw.cmd clean test -Dcucumber.filter.tags="@smoke"</code><br><code>mvnw.cmd clean test -Dcucumber.filter.tags="@contrato and @negativo"</code></td></tr>
   <tr><td>Pipeline</td><td>Automático a cada push na branch <code>main</code> (ou <i>Run workflow</i> na aba Actions)</td></tr>
 </table>
-<p>Pré-requisito para rodar fora do Docker: JDK 21 ou superior. Ao final da execução os relatórios ficam em
-<code>testes-automatizados/target/</code> (<code>cucumber-reports.html</code>, <code>cucumber.json</code> e
-<code>cucumber-junit.xml</code>). As instruções completas estão no <code>README.md</code> da pasta
-<code>testes-automatizados</code>.</p>
+<p>Pré-requisito para rodar fora do Docker: JDK 21 ou superior. Ao final da execução o relatório fica em
+<code>testes-automatizados/target/cucumber-reports.html</code>. As instruções completas estão no
+<code>README.md</code> da pasta <code>testes-automatizados</code>.</p>
 <h2 class="quebra">9. Evidências de execução</h2>
-<p>A suíte foi executada localmente no Windows 11 (JDK 24, compilando para Java 21) contra a API rodando com <code>dotnet run</code> e o SQL Server local, com o comando <code>./mvnw -B clean test -Dapi.baseUrl=http://localhost:5000</code>. As Figuras 1 e 2 mostram trechos da saída real do console (as linhas omitidas estão marcadas com "(...)").</p>
-<figure class=""><img src="prints-testes/01-console-inicio.png"><figcaption>Figura 1 - Início da execução: build do Maven, Hook @BeforeAll aguardando a API e o primeiro cenário (401 sem token).</figcaption></figure>
-<figure class=""><img src="prints-testes/02-console-resultado.png"><figcaption>Figura 2 - Fim da execução: 26 cenários e 150 steps aprovados, Tests run: 26, Failures: 0 e BUILD SUCCESS.</figcaption></figure>
-<figure class=""><img src="prints-testes/03-relatorio-resumo.png"><figcaption>Figura 3 - Relatório HTML do Cucumber (target/cucumber-reports.html): 26 cenários executados, 100% aprovados.</figcaption></figure>
-<p>No relatório HTML, cada cenário traz os passos executados e, no final, a requisição e a resposta da API anexadas pelo Hook. As figuras a seguir mostram cenários positivos e negativos de cada recurso.</p>
-<figure class="cenario"><img src="prints-testes/04-cenario-login-ok.png"><figcaption>Figura 4 - Login bem-sucedido: status 200, nome e papel conferidos, token JWT e contrato "Login bem-sucedido".</figcaption></figure>
-<figure class="cenario"><img src="prints-testes/05-cenario-login-senha.png"><figcaption>Figura 5 - Login com senha incorreta: status 400, mensagem de erro e contrato "Erro da API".</figcaption></figure>
-<figure class="cenario"><img src="prints-testes/06-cenario-leitura-201.png"><figcaption>Figura 6 - Registro de leitura de consumo: status 201, campos da resposta e contrato "Leitura registrada".</figcaption></figure>
-<figure class="cenario"><img src="prints-testes/07-cenario-leitura-401.png"><figcaption>Figura 7 - Registro de leitura sem token: status 401 e cabeçalho WWW-Authenticate: Bearer.</figcaption></figure>
-<figure class="cenario"><img src="prints-testes/08-cenario-alerta-resolver.png"><figcaption>Figura 8 - Resolução de alerta de consumo: status 200, resolvido = true, data de resolução registrada e contrato "Alerta".</figcaption></figure>
-<figure class="cenario"><img src="prints-testes/09-cenario-equipamento-desligar.png"><figcaption>Figura 9 - Desligamento remoto de equipamento (ADMIN): status 200, ativo = false e contrato "Equipamento".</figcaption></figure>
-<figure class="cenario"><img src="prints-testes/10-cenario-dashboard-400.png"><figcaption>Figura 10 - Painel de consumo com data inválida: status 400, erro de validação no campo DataInicio e contrato "Erro de validação".</figcaption></figure>
+<h3>Execução local</h3>
+<p>A suíte foi executada no Windows 11 com o <code>executar-api.bat</code> (API em http://localhost:5000 com o SQL Server local) e o <code>executar-testes-bdd.bat</code>, que roda o <code>mvnw clean test</code> e abre o relatório HTML no final.</p>
+<figure class=""><img src="prints-testes/01-console-execucao.png"><figcaption>Figura 1 - Console do executar-testes-bdd.bat: último cenário (health check) com os passos aprovados e o resultado final, com 26 cenários e 150 steps aprovados, Tests run: 26, Failures: 0 e BUILD SUCCESS.</figcaption></figure>
+<figure class=""><img src="prints-testes/02-relatorio-html.png"><figcaption>Figura 2 - Relatório HTML do Cucumber (target/cucumber-reports.html) aberto no navegador: 26 cenários executados, 100% aprovados.</figcaption></figure>
+<p>No relatório, cada cenário mostra os passos executados e a resposta da API guardada pelo Hook. Alguns exemplos de cenários positivos e negativos:</p>
+<figure class="cenario"><img src="prints-testes/03-cenario-login-ok.png"><figcaption>Figura 3 - Login bem-sucedido: status 200, nome e papel conferidos, token JWT e contrato "Login bem-sucedido".</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/04-cenario-leitura-201.png"><figcaption>Figura 4 - Registro de leitura de consumo: status 201, campos da resposta e contrato "Leitura registrada".</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/05-cenario-leitura-401.png"><figcaption>Figura 5 - Registro de leitura sem token: status 401 e cabeçalho WWW-Authenticate: Bearer.</figcaption></figure>
 <h3>Teste de contrato detectando uma quebra</h3>
-<p>Para conferir que o teste de contrato realmente falha quando a resposta muda, o contrato <code>equipamento.json</code> foi alterado de propósito para esperar o campo <code>ativo</code> como texto (<code>"type": "string"</code>), enquanto a API devolve um booleano. O cenário falhou apontando exatamente a diferença (<code>$.ativo: boolean encontrado, string esperado</code>) e o Maven terminou com BUILD FAILURE. Depois o contrato foi restaurado e a suíte completa voltou a passar.</p>
-<figure class=""><img src="prints-testes/11-falha-contrato-console.png"><figcaption>Figura 11 - Console da execução com o contrato alterado: o passo de contrato falha e o build termina com BUILD FAILURE.</figcaption></figure>
-<figure class=""><img src="prints-testes/12-falha-contrato-relatorio.png"><figcaption>Figura 12 - Relatório HTML da mesma execução, com o erro de contrato destacado no passo que falhou.</figcaption></figure>
-<h3 class="quebra">Execução no pipeline (GitHub Actions)</h3>
+<p>Para conferir que o teste de contrato realmente falha quando a resposta muda, o contrato <code>equipamento.json</code> foi alterado de propósito para esperar o campo <code>ativo</code> como texto (<code>"type": "string"</code>), enquanto a API devolve um booleano. O cenário falhou apontando a diferença (<code>$.ativo: boolean encontrado, string esperado</code>). Depois o contrato foi restaurado e a suíte voltou a passar.</p>
+<figure class="cenario"><img src="prints-testes/06-falha-contrato-relatorio.png"><figcaption>Figura 6 - Relatório HTML da execução com o contrato alterado: o passo de contrato falhou e mostra o erro encontrado.</figcaption></figure>
+<h3>Execução no pipeline (GitHub Actions)</h3>
 <p>Depois do push para a branch <code>main</code>, o pipeline executou automaticamente (execução nº 7, github.com/CrisDek-dev/challenge-esg-devops/actions/runs/40507804335). O job <b>Testes BDD (API)</b> subiu a API com SQL Server via Docker Compose e executou os 26 cenários duas vezes: pelo Maven (<code>./mvnw clean test</code>) e pelo container de testes (<code>Dockerfile</code> + <code>docker-compose.testes.yml</code>). Os dois passaram, e só então a imagem Docker foi publicada e os deploys de staging e produção foram executados.</p>
-<figure class=""><img src="prints-testes/13-pipeline-geral.png"><figcaption>Figura 13 - Pipeline completo no GitHub Actions: build e testes unitários, testes BDD, imagem Docker e deploys, todos com sucesso.</figcaption></figure>
-<figure class="cenario"><img src="prints-testes/14-pipeline-resumo-cenarios.png"><figcaption>Figura 14 - Resumo publicado pelo job de testes BDD na aba Summary: 26 cenários executados e aprovados.</figcaption></figure>
-<figure class=""><img src="prints-testes/15-pipeline-log-testes-bdd.png"><figcaption>Figura 15 - Log do job Testes BDD (API), passo "Executar testes BDD (mvn clean test)": 26 Scenarios (26 passed), Tests run: 26, Failures: 0 e BUILD SUCCESS.</figcaption></figure>
+<figure class=""><img src="prints-testes/07-pipeline-geral.png"><figcaption>Figura 7 - Pipeline completo no GitHub Actions: build e testes unitários, testes BDD, imagem Docker e deploys, todos com sucesso.</figcaption></figure>
+<figure class=""><img src="prints-testes/08-pipeline-log-testes-bdd.png"><figcaption>Figura 8 - Log do job Testes BDD (API), passo "Executar testes BDD (mvn clean test)": 26 Scenarios (26 passed), Tests run: 26, Failures: 0 e BUILD SUCCESS.</figcaption></figure>
 <h2>10. Conclusão</h2>
 <p>Com o BDD, o comportamento esperado da API ficou descrito em português, de um jeito que dá para entender sem ler
 o código, e cada frase dos cenários virou um teste automatizado. Os 26 cenários cobrem todos os endpoints com
