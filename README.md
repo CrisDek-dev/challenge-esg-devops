@@ -226,7 +226,7 @@ Orquestração (`docker-compose.yml`):
 
 Execuções do pipeline: https://github.com/CrisDek-dev/challenge-esg-devops/actions
 
-**Pipeline completo (4 jobs com sucesso)**
+**Pipeline da entrega de DevOps (4 jobs com sucesso, antes dos testes BDD)**
 
 ![Pipeline](docs/prints/01-pipeline-geral.png)
 
