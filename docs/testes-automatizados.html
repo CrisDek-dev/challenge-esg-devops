@@ -52,7 +52,7 @@
     <b>Integrante:</b> Cristofer Ridek Ribeiro Yanachi - RM 561914<br>
     <b>Turma:</b> 2TDSOB<br>
     <b>Repositório:</b> github.com/CrisDek-dev/challenge-esg-devops (pasta <code>testes-automatizados</code>)<br>
-    FIAP - Testes Automatizados - outubro de 2026
+    FIAP - Testes Automatizados - novembro de 2026
   </div>
 </div>
 
@@ -942,6 +942,11 @@ services:
 <p>Para conferir que o teste de contrato realmente falha quando a resposta muda, o contrato <code>equipamento.json</code> foi alterado de propósito para esperar o campo <code>ativo</code> como texto (<code>"type": "string"</code>), enquanto a API devolve um booleano. O cenário falhou apontando exatamente a diferença (<code>$.ativo: boolean encontrado, string esperado</code>) e o Maven terminou com BUILD FAILURE. Depois o contrato foi restaurado e a suíte completa voltou a passar.</p>
 <figure class=""><img src="prints-testes/11-falha-contrato-console.png"><figcaption>Figura 11 - Console da execução com o contrato alterado: o passo de contrato falha e o build termina com BUILD FAILURE.</figcaption></figure>
 <figure class=""><img src="prints-testes/12-falha-contrato-relatorio.png"><figcaption>Figura 12 - Relatório HTML da mesma execução, com o erro de contrato destacado no passo que falhou.</figcaption></figure>
+<h3 class="quebra">Execução no pipeline (GitHub Actions)</h3>
+<p>Depois do push para a branch <code>main</code>, o pipeline executou automaticamente (execução nº 7, github.com/CrisDek-dev/challenge-esg-devops/actions/runs/40507804335). O job <b>Testes BDD (API)</b> subiu a API com SQL Server via Docker Compose e executou os 26 cenários duas vezes: pelo Maven (<code>./mvnw clean test</code>) e pelo container de testes (<code>Dockerfile</code> + <code>docker-compose.testes.yml</code>). Os dois passaram, e só então a imagem Docker foi publicada e os deploys de staging e produção foram executados.</p>
+<figure class=""><img src="prints-testes/13-pipeline-geral.png"><figcaption>Figura 13 - Pipeline completo no GitHub Actions: build e testes unitários, testes BDD, imagem Docker e deploys, todos com sucesso.</figcaption></figure>
+<figure class="cenario"><img src="prints-testes/14-pipeline-resumo-cenarios.png"><figcaption>Figura 14 - Resumo publicado pelo job de testes BDD na aba Summary: 26 cenários executados e aprovados.</figcaption></figure>
+<figure class=""><img src="prints-testes/15-pipeline-log-testes-bdd.png"><figcaption>Figura 15 - Log do job Testes BDD (API), passo "Executar testes BDD (mvn clean test)": 26 Scenarios (26 passed), Tests run: 26, Failures: 0 e BUILD SUCCESS.</figcaption></figure>
 <h2>10. Conclusão</h2>
 <p>Com o BDD, o comportamento esperado da API ficou descrito em português, de um jeito que dá para entender sem ler
 o código, e cada frase dos cenários virou um teste automatizado. Os 26 cenários cobrem todos os endpoints com
@@ -950,7 +955,7 @@ protegem as regras ligadas ao tema ESG do projeto: a geração de alertas quando
 remoto dos equipamentos, o controle de acesso e a rastreabilidade da resolução dos alertas.</p>
 <p>A execução é simples (um comando Maven, um <code>.bat</code> ou o Docker Compose) e foi integrada ao pipeline de
 CI/CD, onde os testes BDD funcionam como uma barreira de qualidade: se algum cenário falhar, a nova versão não é
-publicada nem implantada.</p>
+publicada nem implantada. Os 26 cenários passaram tanto na execução local quanto no GitHub Actions.</p>
 
 </body>
 </html>

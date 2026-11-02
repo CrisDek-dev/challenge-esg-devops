@@ -39,6 +39,14 @@ docker compose -f docker-compose.yml -f docker-compose.testes.yml up --build --e
 
 Instruções completas no [README dos testes](testes-automatizados/README.md).
 
+**Pipeline com o job de testes BDD (todos os jobs com sucesso)**
+
+![Pipeline com testes BDD](docs/prints-testes/13-pipeline-geral.png)
+
+**Resumo dos 26 cenários publicado pelo pipeline**
+
+![Resumo dos testes BDD](docs/prints-testes/14-pipeline-resumo-cenarios.png)
+
 ---
 
 ## Como executar localmente com Docker
